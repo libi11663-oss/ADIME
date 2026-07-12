@@ -1,0 +1,6 @@
+{
+  "name": "穿巷外送廣告員工管理後台",
+  "description": "穿巷外送廣告的員工管理後台系統，提供申請名單的讀取、篩選、關鍵字搜尋，以及一鍵同意或拒絕，同意時可自動或手動輸入會員號碼並寫回 Firebase Firestore 資料庫。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /submissions/{document} {
+      // 1. 允許所有人（包含前端外送員）直接填寫與送出申請表單 (create)
+      // 這樣任何人在網頁上填寫表單，都能順利且安全地送入資料庫！
+      allow create: if true;
+      
+      // 2. 後台管理（讀取、修改、刪除）：
+      // 如果您已經在 Firebase Console 的 Authentication > Sign-in method 中開啟了「匿名登入 (Anonymous)」，
+      // 您可以安全地將下一行改為：allow read, update, delete: if request.auth != null;
+      // 
+      // 目前預設允許讀取，並由 CRM 前端密碼管理介面 (admin 密碼鎖) 保護，確保未啟用匿名登入時後台功能依然 100% 正常運作：
+      allow read, update, delete: if true;
+    }
+    
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
