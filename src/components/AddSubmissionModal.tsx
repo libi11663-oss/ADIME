@@ -1,14 +1,20 @@
 import React, { useState } from "react";
-import { X, User, Phone, Mail, MapPin, Bike, Smartphone, Image, Plus, Check } from "lucide-react";
+import { X, User, Phone, Mail, MapPin, Bike, Smartphone, Image, Plus, Check, Calendar } from "lucide-react";
 import { Submission } from "../types";
 
 interface AddSubmissionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (submissionData: Omit<Submission, "id" | "status" | "appliedAt">) => Promise<void>;
+  onSubmit: (submissionData: Omit<Submission, "id" | "status" | "appliedAt"> & { appliedAt?: string }) => Promise<void>;
 }
 
 export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSubmissionModalProps) {
+  // Helper to format a Date as YYYY-MM-DDTHH:mm for datetime-local input
+  const getLocalDateTimeString = (date: Date) => {
+    const tzOffset = date.getTimezoneOffset() * 60000; // offset in milliseconds
+    return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -16,10 +22,19 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
   const [plateNumber, setPlateNumber] = useState("");
   const [deliveryPlatform, setDeliveryPlatform] = useState("Foodpanda");
   const [area, setArea] = useState("");
-  const [adLocation, setAdLocation] = useState("外送箱後方");
+  const [motorcycleModel, setMotorcycleModel] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [notes, setNotes] = useState("");
+  const [appliedAt, setAppliedAt] = useState(() => getLocalDateTimeString(new Date()));
   const [submitting, setSubmitting] = useState(false);
+
+  // Rider specific profile fields
+  const [lineId, setLineId] = useState("");
+  const [primaryRegion, setPrimaryRegion] = useState("");
+  const [weeklyOrders, setWeeklyOrders] = useState("");
+  const [dailyHours, setDailyHours] = useState("");
+  const [address, setAddress] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
 
   if (!isOpen) return null;
 
@@ -66,9 +81,19 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
         plateNumber: plateNumber.trim() || "無",
         deliveryPlatform,
         area: area.trim(),
-        adLocation,
+        adLocation: motorcycleModel.trim() || "無",
+        motorcycleModel: motorcycleModel.trim() || "無",
         photoUrl: finalPhotoUrl,
         notes: notes.trim(),
+        appliedAt: new Date(appliedAt).toISOString(),
+        
+        // Pass new fields
+        lineId: lineId.trim(),
+        primaryRegion: primaryRegion.trim() || area.trim(),
+        weeklyOrders: weeklyOrders.trim(),
+        dailyHours: dailyHours.trim(),
+        address: address.trim(),
+        bankAccount: bankAccount.trim(),
       });
       
       // Reset form
@@ -79,12 +104,21 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
       setPlateNumber("");
       setDeliveryPlatform("Foodpanda");
       setArea("");
-      setAdLocation("外送箱後方主要看板");
+      setMotorcycleModel("");
       setPhotoUrl("");
       setNotes("");
+      setLineId("");
+      setPrimaryRegion("");
+      setWeeklyOrders("");
+      setDailyHours("");
+      setAddress("");
+      setBankAccount("");
+      setAppliedAt(getLocalDateTimeString(new Date()));
       onClose();
     } catch (error) {
-      alert("新增失敗，請確認網路連線。");
+      console.error("Add submission modal error:", error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      alert(`新增失敗！錯誤原因：${errorMsg}\n\n請確認網路連線是否正常。`);
     } finally {
       setSubmitting(false);
     }
@@ -239,21 +273,21 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
             </div>
           </div>
 
-          {/* Row 5: Ad Location & Photo Url */}
-          <div className="grid grid-cols-1 gap-4">
+          {/* Row 5: Motorcycle Model & Photo Url */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">預計廣告安裝位置</label>
-              <select
-                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold text-slate-800"
-                value={adLocation}
-                onChange={(e) => setAdLocation(e.target.value)}
-              >
-                {AD_LOCATIONS.map((loc) => (
-                  <option key={loc} value={loc}>
-                    {loc}
-                  </option>
-                ))}
-              </select>
+              <label className="text-xs font-bold text-slate-700 block mb-1">機車車型 / 載具型號 <span className="text-rose-500">*</span></label>
+              <div className="relative">
+                <Bike className="absolute left-3 top-2.5 text-slate-400" size={14} />
+                <input
+                  type="text"
+                  required
+                  placeholder="例：Gogoro 2, SYM Jet SL 等"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
+                  value={motorcycleModel}
+                  onChange={(e) => setMotorcycleModel(e.target.value)}
+                />
+              </div>
             </div>
 
             <div>
@@ -268,6 +302,97 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
                   onChange={(e) => setPhotoUrl(e.target.value)}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Row 5.5: Application Date/Time */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              申請日期與時間 <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-2.5 text-slate-400" size={14} />
+              <input
+                type="datetime-local"
+                required
+                className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium text-slate-850"
+                value={appliedAt}
+                onChange={(e) => setAppliedAt(e.target.value)}
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 font-medium mt-1">預設為目前時間。若此申請是昨天或過去填寫的，請調整為當時的送出日期。</p>
+          </div>
+
+          {/* New Rider Specific Sections */}
+          <div className="border-t border-slate-100 pt-3 space-y-3">
+            <h4 className="text-xs font-black text-indigo-600 uppercase tracking-wider">跑單及帳戶詳細資料</h4>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">LINE ID</label>
+                <input
+                  type="text"
+                  placeholder="例：line_id_123"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
+                  value={lineId}
+                  onChange={(e) => setLineId(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">常跑縣市</label>
+                <input
+                  type="text"
+                  placeholder="例：台北市、新北市"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
+                  value={primaryRegion}
+                  onChange={(e) => setPrimaryRegion(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">平均跑單數 (每週或每日)</label>
+                <input
+                  type="text"
+                  placeholder="例：150 單/週 或 25 單/日"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
+                  value={weeklyOrders}
+                  onChange={(e) => setWeeklyOrders(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">每天時數</label>
+                <input
+                  type="text"
+                  placeholder="例：8 小時"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
+                  value={dailyHours}
+                  onChange={(e) => setDailyHours(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">聯絡地址</label>
+              <input
+                type="text"
+                placeholder="例：台北市大安區新生南路三段 xx 號"
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">銀行帳號 (格式：代碼-帳號)</label>
+              <input
+                type="text"
+                placeholder="例：(822) 中國信託 1234-5678-9012"
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium font-mono"
+                value={bankAccount}
+                onChange={(e) => setBankAccount(e.target.value)}
+              />
             </div>
           </div>
 

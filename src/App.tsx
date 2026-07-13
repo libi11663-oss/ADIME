@@ -2,12 +2,13 @@ import { useState, useEffect, FormEvent } from "react";
 import { collection, onSnapshot, doc, updateDoc, writeBatch, addDoc } from "firebase/firestore";
 import { db, auth } from "./firebase";
 import { signInAnonymously, signOut } from "firebase/auth";
-import { Submission, SubmissionFilter } from "./types";
+import { Submission, SubmissionFilter, AdvertiserSubmission } from "./types";
 import { clearAllSubmissionsFromFirebase } from "./seedData";
 import DashboardStats from "./components/DashboardStats";
 import SubmissionList from "./components/SubmissionList";
 import SubmissionDetail from "./components/SubmissionDetail";
 import AddSubmissionModal from "./components/AddSubmissionModal";
+import AdvertiserListAndDetail from "./components/AdvertiserListAndDetail";
 import {
   RefreshCw,
   Layers,
@@ -26,7 +27,13 @@ import {
   Smartphone,
   Image as ImageIcon,
   Check,
-  ChevronRight
+  ChevronRight,
+  Calendar,
+  MessageSquare,
+  CreditCard,
+  Clock,
+  Map,
+  TrendingUp
 } from "lucide-react";
 
 export default function App() {
@@ -46,11 +53,27 @@ export default function App() {
   const [pubPlateNumber, setPubPlateNumber] = useState("");
   const [pubDeliveryPlatform, setPubDeliveryPlatform] = useState("Foodpanda");
   const [pubArea, setPubArea] = useState("");
-  const [pubAdLocation, setPubAdLocation] = useState("外送箱後方主要看板");
+  const [pubMotorcycleModel, setPubMotorcycleModel] = useState("");
   const [pubPhotoUrl, setPubPhotoUrl] = useState("");
   const [pubNotes, setPubNotes] = useState("");
+  
+  // New public fields
+  const [pubLineId, setPubLineId] = useState("");
+  const [pubPrimaryRegion, setPubPrimaryRegion] = useState("");
+  const [pubWeeklyOrders, setPubWeeklyOrders] = useState("");
+  const [pubDailyHours, setPubDailyHours] = useState("");
+  const [pubAddress, setPubAddress] = useState("");
+  const [pubBankAccount, setPubBankAccount] = useState("");
+
   const [pubSubmitting, setPubSubmitting] = useState(false);
   const [pubSuccess, setPubSuccess] = useState(false);
+
+  // Helper to format Date for datetime-local
+  const getLocalDateTimeString = (date: Date) => {
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+  const [pubAppliedAt, setPubAppliedAt] = useState(() => getLocalDateTimeString(new Date()));
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +82,7 @@ export default function App() {
   
   // Real-time synchronization message state
   const [statusMsg, setStatusMsg] = useState({ text: "正在連線至 Firebase 資料庫...", type: "info" });
+  const [retryCount, setRetryCount] = useState(0);
   
   // Filtering state
   const [filters, setFilters] = useState<SubmissionFilter>({
@@ -67,6 +91,75 @@ export default function App() {
     vehicleType: "all",
     deliveryPlatform: "all",
   });
+
+  // Advertiser CRM state
+  const [crmTab, setCrmTab] = useState<"riders" | "advertisers">("riders");
+  const [advertisers, setAdvertisers] = useState<AdvertiserSubmission[]>([]);
+  const [selectedAdvertiserId, setSelectedAdvertiserId] = useState<string | null>(null);
+  const [advertisersLoading, setAdvertisersLoading] = useState(true);
+
+  // Fetch / sync advertiser submissions in real-time
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setAdvertisersLoading(false);
+      return;
+    }
+
+    setAdvertisersLoading(true);
+    let isSubscribed = true;
+    let unsubscribe: (() => void) | null = null;
+
+    const startSyncAdvertisers = () => {
+      const advertisersRef = collection(db, "advertiser_submissions");
+      unsubscribe = onSnapshot(
+        advertisersRef,
+        (snapshot) => {
+          if (!isSubscribed) return;
+          const list: AdvertiserSubmission[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              name: data.name || "",
+              phone: data.phone || "",
+              email: data.email || "",
+              companyName: data.companyName || "",
+              budget: data.budget || "",
+              message: data.message || "",
+              lineId: data.lineId || "",
+              city: data.city || "",
+              createdAt: data.createdAt || new Date().toISOString(),
+              role: data.role || "advertiser",
+              dailyHours: data.dailyHours || "",
+              weeklyDays: data.weeklyDays || "",
+              scooterModel: data.scooterModel || "",
+              address: data.address || "",
+              licensePlate: data.licensePlate || "",
+              primaryRegion: data.primaryRegion || "",
+              deliveryPlatform: data.deliveryPlatform || "",
+            });
+          });
+
+          // Sort descending by created time
+          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setAdvertisers(list);
+          setAdvertisersLoading(false);
+        },
+        (error) => {
+          if (!isSubscribed) return;
+          console.error("Firebase advertisers sync error:", error);
+          setAdvertisersLoading(false);
+        }
+      );
+    };
+
+    startSyncAdvertisers();
+
+    return () => {
+      isSubscribed = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [isAuthenticated, retryCount]);
 
   // Fetch / sync submissions in real-time
   useEffect(() => {
@@ -88,25 +181,75 @@ export default function App() {
         (snapshot) => {
           if (!isSubscribed) return;
           const list: Submission[] = [];
-          snapshot.forEach((doc) => {
-            const data = doc.data();
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const docId = docSnap.id;
+
+            // Auto-fix missing appliedAt in Firestore database to prevent dynamic updating on refresh
+            if (!data.appliedAt) {
+              const stableDate = data.createdAt || "2026-07-11T12:00:00.000Z";
+              updateDoc(doc(db, "submissions", docId), {
+                appliedAt: stableDate
+              }).catch((err) => console.warn("Auto-fix appliedAt error:", err));
+            }
+
+            // Safe normalization of delivery platform
+            let normalizedPlatform = data.deliveryPlatform || data.delivery_platform || "其它";
+            if (normalizedPlatform.toLowerCase() === "booth" || normalizedPlatform.toLowerCase() === "both") {
+              normalizedPlatform = "Foodpanda"; // Map "booth/both" back to Foodpanda (or whatever they picked)
+            }
+
+            // Safe plate number extraction
+            const parsedPlateNumber = data.plateNumber || data.plate_number || "無";
+
             list.push({
-              id: doc.id,
+              id: docId,
               name: data.name || "",
               phone: data.phone || "",
               email: data.email || "",
               vehicleType: data.vehicleType || "機車",
-              plateNumber: data.plateNumber || "",
-              deliveryPlatform: data.deliveryPlatform || "其它",
+              plateNumber: parsedPlateNumber,
+              deliveryPlatform: normalizedPlatform,
               area: data.area || "",
               adLocation: data.adLocation || "",
+              motorcycleModel: data.motorcycleModel || data.motorcycle_model || data.adLocation || "無",
               photoUrl: data.photoUrl || "",
               status: data.status || "pending",
               memberId: data.memberId || "",
-              appliedAt: data.appliedAt || new Date().toISOString(),
-              reviewedAt: data.reviewedAt || null,
+              appliedAt: (() => {
+                if (!data.appliedAt) return data.createdAt || "2026-07-11T12:00:00.000Z";
+                if (typeof data.appliedAt.toDate === "function") {
+                  return data.appliedAt.toDate().toISOString();
+                }
+                if (typeof data.appliedAt === "string") {
+                  return data.appliedAt;
+                }
+                if (data.appliedAt.seconds) {
+                  return new Date(data.appliedAt.seconds * 1000).toISOString();
+                }
+                return String(data.appliedAt);
+              })(),
+              reviewedAt: (() => {
+                if (!data.reviewedAt) return null;
+                if (typeof data.reviewedAt.toDate === "function") {
+                  return data.reviewedAt.toDate().toISOString();
+                }
+                if (typeof data.reviewedAt === "string") {
+                  return data.reviewedAt;
+                }
+                if (data.reviewedAt.seconds) {
+                  return new Date(data.reviewedAt.seconds * 1000).toISOString();
+                }
+                return String(data.reviewedAt);
+              })(),
               rejectionReason: data.rejectionReason || "",
               notes: data.notes || "",
+              lineId: data.lineId || data.line_id || "",
+              primaryRegion: data.primaryRegion || data.primary_region || data.city || data.area || "",
+              weeklyOrders: data.weeklyOrders || data.weekly_orders || "",
+              dailyHours: data.dailyHours || data.daily_hours || "",
+              address: data.address || "",
+              bankAccount: data.bankAccount || data.bank_account || "",
             });
           });
 
@@ -120,38 +263,29 @@ export default function App() {
         (error) => {
           if (!isSubscribed) return;
           console.error("Firebase sync error:", error);
-          setStatusMsg({ text: "讀取資料失敗，請確認 Firebase 權限與連線！", type: "error" });
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          setStatusMsg({ text: `讀取資料失敗: ${errorMsg} (請確認 Firebase 權限與連線)`, type: "error" });
           setLoading(false);
         }
       );
     };
 
-    // Ensure we are signed in anonymously to Firestore
+    // Start syncing immediately to prevent waiting for Auth handshake
+    startSync();
+
+    // Sign in anonymously in the background without blocking the data sync
     if (!auth.currentUser) {
       signInAnonymously(auth)
-        .then(() => {
-          if (isSubscribed) {
-            startSync();
-          }
-        })
         .catch((err) => {
-          console.warn("Auto sign-in warning (Anonymous Auth might be disabled in Firebase console):", err);
-          if (isSubscribed) {
-            // Fallback: if anonymous auth is not enabled, we still attempt to sync.
-            // If firestore rules allow it (or are set to allow with fallback), this will succeed!
-            startSync();
-            setStatusMsg({ text: "安全密碼驗證成功！已成功載入資料庫", type: "success" });
-          }
+          console.warn("Background Anonymous Auth sign-in warning:", err);
         });
-    } else {
-      startSync();
     }
 
     return () => {
       isSubscribed = false;
       if (unsubscribe) unsubscribe();
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, retryCount]);
 
   // Update selectedId if selected document is deleted or changed
   const selectedSubmission = submissions.find((s) => s.id === selectedId) || null;
@@ -221,13 +355,13 @@ export default function App() {
   };
 
   // Create manual submission action
-  const handleAddSubmission = async (submissionData: Omit<Submission, "id" | "status" | "appliedAt">) => {
+  const handleAddSubmission = async (submissionData: Omit<Submission, "id" | "status" | "appliedAt"> & { appliedAt?: string }) => {
     try {
       const submissionsRef = collection(db, "submissions");
       await addDoc(submissionsRef, {
         ...submissionData,
         status: "pending",
-        appliedAt: new Date().toISOString(),
+        appliedAt: submissionData.appliedAt || new Date().toISOString(),
         reviewedAt: null,
         rejectionReason: "",
       });
@@ -259,13 +393,22 @@ export default function App() {
         plateNumber: pubPlateNumber.trim() || "無",
         deliveryPlatform: pubDeliveryPlatform,
         area: pubArea.trim(),
-        adLocation: pubAdLocation,
+        adLocation: pubMotorcycleModel.trim() || "無",
+        motorcycleModel: pubMotorcycleModel.trim() || "無",
         photoUrl: finalPhotoUrl,
         status: "pending",
-        appliedAt: new Date().toISOString(),
+        appliedAt: new Date(pubAppliedAt).toISOString(),
         reviewedAt: null,
         rejectionReason: "",
         notes: pubNotes.trim() ? `[外送員留言] ${pubNotes.trim()}` : "",
+        
+        // Add new fields
+        lineId: pubLineId.trim(),
+        primaryRegion: pubPrimaryRegion.trim() || pubArea.trim(),
+        weeklyOrders: pubWeeklyOrders.trim(),
+        dailyHours: pubDailyHours.trim(),
+        address: pubAddress.trim(),
+        bankAccount: pubBankAccount.trim(),
       });
 
       // Clear public states
@@ -276,14 +419,22 @@ export default function App() {
       setPubPlateNumber("");
       setPubDeliveryPlatform("Foodpanda");
       setPubArea("");
-      setPubAdLocation("外送箱後方主要看板");
+      setPubMotorcycleModel("");
       setPubPhotoUrl("");
       setPubNotes("");
+      setPubLineId("");
+      setPubPrimaryRegion("");
+      setPubWeeklyOrders("");
+      setPubDailyHours("");
+      setPubAddress("");
+      setPubBankAccount("");
+      setPubAppliedAt(getLocalDateTimeString(new Date()));
       
       setPubSuccess(true);
     } catch (e) {
       console.error("Public submit error:", e);
-      alert("送出失敗！請確認網路連線是否正常。");
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      alert(`送出失敗！錯誤原因：${errorMsg}\n\n請確認網路連線是否正常。如果是配額問題 (Quota exceeded)，可在隔日重置。`);
     } finally {
       setPubSubmitting(false);
     }
@@ -537,21 +688,22 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Ad Location */}
+                  {/* Motorcycle Model */}
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
-                      預計广告安裝位置
+                      機車車型 / 載具型號 <span className="text-rose-500">*</span>
                     </label>
-                    <select
-                      value={pubAdLocation}
-                      onChange={(e) => setPubAdLocation(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-xs font-black text-slate-200 focus:outline-hidden transition-all appearance-none"
-                    >
-                      <option value="外送箱後方主要看板">外送箱後方主要看板 (1面)</option>
-                      <option value="外送箱雙側海報">外送箱雙側海報 (2面)</option>
-                      <option value="外送箱後方與兩側">外送箱後方與兩側 (3面極致版)</option>
-                      <option value="後貨架背包兩側">後貨架背包兩側 (輕便版)</option>
-                    </select>
+                    <div className="relative">
+                      <Bike className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                      <input
+                        type="text"
+                        required
+                        placeholder="例：Gogoro 2, SYM Jet SL, Kymco GP 125, Giant 等"
+                        value={pubMotorcycleModel}
+                        onChange={(e) => setPubMotorcycleModel(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
+                      />
+                    </div>
                   </div>
 
                   {/* Photo URL */}
@@ -571,6 +723,111 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Rider Profile Extra Fields (LINE ID, Primary Region, Weekly Orders, Daily Hours, Contact Address, Bank Account) */}
+                  <div className="border-t border-slate-800 pt-4 space-y-4">
+                    <h4 className="text-xs font-black text-indigo-400 uppercase tracking-wider">跑單及帳戶詳細資料</h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                          LINE ID
+                        </label>
+                        <div className="relative">
+                          <MessageSquare className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                          <input
+                            type="text"
+                            placeholder="例：line_id_123"
+                            value={pubLineId}
+                            onChange={(e) => setPubLineId(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                          常跑縣市
+                        </label>
+                        <div className="relative">
+                          <Map className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                          <input
+                            type="text"
+                            placeholder="例：台北市、新北市"
+                            value={pubPrimaryRegion}
+                            onChange={(e) => setPubPrimaryRegion(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                          平均跑單數 (每週或每日)
+                        </label>
+                        <div className="relative">
+                          <TrendingUp className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                          <input
+                            type="text"
+                            placeholder="例：150 單/週"
+                            value={pubWeeklyOrders}
+                            onChange={(e) => setPubWeeklyOrders(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                          每天時數
+                        </label>
+                        <div className="relative">
+                          <Clock className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                          <input
+                            type="text"
+                            placeholder="例：8 小時"
+                            value={pubDailyHours}
+                            onChange={(e) => setPubDailyHours(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                        聯絡地址
+                      </label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                        <input
+                          type="text"
+                          placeholder="例：台北市大安區新生南路三段 xx 號"
+                          value={pubAddress}
+                          onChange={(e) => setPubAddress(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                        銀行帳號
+                      </label>
+                      <div className="relative">
+                        <CreditCard className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                        <input
+                          type="text"
+                          placeholder="例：(822) 中國信託 1234-5678-9012"
+                          value={pubBankAccount}
+                          onChange={(e) => setPubBankAccount(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Notes (Supplementary message for driver) */}
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
@@ -583,6 +840,24 @@ export default function App() {
                       onChange={(e) => setPubNotes(e.target.value)}
                       className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
                     />
+                  </div>
+
+                  {/* Application Date/Time (Allows retroactively setting date) */}
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                      填寫/送出日期時間
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                      <input
+                        type="datetime-local"
+                        required
+                        value={pubAppliedAt}
+                        onChange={(e) => setPubAppliedAt(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 focus:outline-hidden transition-all"
+                      />
+                    </div>
+                    <p className="text-[9px] text-slate-500 font-bold mt-1">※ 預設為目前時間。如果您是補填昨日或過去的表單，可在此調整送出時間，以便在後台正確顯示。</p>
                   </div>
 
                   {/* Submit button */}
@@ -672,21 +947,44 @@ export default function App() {
           
           {/* Active Sidebar item */}
           <div className="flex flex-col gap-6">
-            <button className="w-12 h-12 rounded-xl bg-indigo-600/15 text-indigo-400 flex items-center justify-center border border-indigo-500/20 relative group transition-all" title="外送員審核">
+            <button
+              onClick={() => setCrmTab("riders")}
+              className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
+                crmTab === "riders"
+                  ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/30"
+                  : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700"
+              }`}
+              title="外送員審核"
+            >
               <Layers size={20} />
-              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50">
+              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
                 外送員審核
+              </span>
+            </button>
+
+            <button
+              onClick={() => setCrmTab("advertisers")}
+              className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
+                crmTab === "advertisers"
+                  ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/30"
+                  : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700"
+              }`}
+              title="企業廣告主信箱"
+            >
+              <Mail size={20} />
+              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
+                企業廣告主
               </span>
             </button>
             
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 flex items-center justify-center border border-slate-700 relative group transition-all cursor-pointer"
-              title="新增申請檔案"
+              title="新增外送員檔案"
             >
               <Plus size={20} />
-              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50">
-                新增申請檔案
+              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
+                新增外送員
               </span>
             </button>
           </div>
@@ -736,6 +1034,14 @@ export default function App() {
                   : "bg-amber-500 animate-ping"
               }`} />
               <span className="max-w-[120px] md:max-w-[280px] truncate">{statusMsg.text}</span>
+              {statusMsg.type === "error" && (
+                <button
+                  onClick={() => setRetryCount(prev => prev + 1)}
+                  className="ml-2 px-1.5 py-0.5 bg-rose-200 hover:bg-rose-300 text-rose-800 rounded font-bold cursor-pointer text-[10px] transition-colors"
+                >
+                  重試連線
+                </button>
+              )}
             </div>
 
             {/* Clear All Data Action (Only shown when there are records) */}
@@ -774,69 +1080,122 @@ export default function App() {
 
         {/* Scrollable Main Content Frame */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-          {/* Loading overlay for the whole page during heavy tasks */}
-          {loading && submissions.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center py-20 text-slate-500 space-y-4">
-              <RefreshCw className="animate-spin text-indigo-600" size={36} />
-              <div className="text-center">
-                <p className="text-sm font-bold text-slate-800">正在同步與載入名單資料...</p>
-                <p className="text-xs text-slate-400 font-medium">第一次載入可能需要數秒，請稍候。</p>
+          {/* Segmented Control Tab Switcher for CRM Section */}
+          <div className="flex bg-slate-200/70 p-1 rounded-xl max-w-sm border border-slate-300/40 select-none">
+            <button
+              onClick={() => setCrmTab("riders")}
+              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                crmTab === "riders"
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Layers size={13} />
+              <span>外送夥伴審核 ({submissions.length})</span>
+            </button>
+            <button
+              onClick={() => setCrmTab("advertisers")}
+              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                crmTab === "advertisers"
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Mail size={13} />
+              <span>企業廣告主 ({advertisers.length})</span>
+            </button>
+          </div>
+
+          {crmTab === "riders" ? (
+            /* Loading overlay for the whole page during heavy tasks */
+            loading && submissions.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center py-20 text-slate-500 space-y-4">
+                <RefreshCw className="animate-spin text-indigo-600" size={36} />
+                <div className="text-center">
+                  <p className="text-sm font-bold text-slate-800">正在同步與載入名單資料...</p>
+                  <p className="text-xs text-slate-400 font-medium">第一次載入可能需要數秒，請稍候。</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Upper Dashboard Statistics Row */}
+                <DashboardStats submissions={submissions} />
+
+                {/* Zero State Onboarding */}
+                {submissions.length === 0 && (
+                  <div className="bg-slate-100/50 border border-dashed border-slate-300 rounded-2xl p-10 text-center space-y-4 max-w-2xl mx-auto my-6">
+                    <div className="mx-auto w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-600">
+                      <Database size={24} />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="font-extrabold text-slate-800 text-lg">尚未有任何真實外送員申請檔案</h3>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
+                        資料庫目前處於全空狀態。您可以點選右上方或側邊欄的<b>「新增申請檔案」</b>按鈕，手動建立您真實的外送員申請名單（包含姓名、電話、機車車牌、外送平台、照片及區域）。
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAddModalOpen(true)}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-md shadow-indigo-100 inline-flex items-center space-x-1.5 transition-all cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      <span>立即新增第一筆申請檔案</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Split Screen Application Workspace */}
+                {submissions.length > 0 && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    
+                    {/* Left Column: Submissions lists, keyword searches, filtering */}
+                    <div className="lg:col-span-5">
+                      <SubmissionList
+                        submissions={submissions}
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
+                        filters={filters}
+                        onFiltersChange={setFilters}
+                      />
+                    </div>
+
+                    {/* Right Column: Full Details and workflow Audit card */}
+                    <div className="lg:col-span-7">
+                      <SubmissionDetail
+                        submission={selectedSubmission}
+                        onApprove={handleApprove}
+                        onReject={handleReject}
+                        onSaveNotes={handleSaveNotes}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            )
           ) : (
-            <>
-              {/* Upper Dashboard Statistics Row */}
-              <DashboardStats submissions={submissions} />
-
-              {/* Zero State Onboarding */}
-              {submissions.length === 0 && (
-                <div className="bg-slate-100/50 border border-dashed border-slate-300 rounded-2xl p-10 text-center space-y-4 max-w-2xl mx-auto my-6">
-                  <div className="mx-auto w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-600">
-                    <Database size={24} />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-extrabold text-slate-800 text-lg">尚未有任何真實外送員申請檔案</h3>
-                    <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
-                      資料庫目前處於全空狀態。您可以點選右上方或側邊欄的<b>「新增申請檔案」</b>按鈕，手動建立您真實的外送員申請名單（包含姓名、電話、機車車牌、外送平台、照片及區域）。
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-md shadow-indigo-100 inline-flex items-center space-x-1.5 transition-all cursor-pointer"
-                  >
-                    <Plus size={14} />
-                    <span>立即新增第一筆申請檔案</span>
-                  </button>
+            /* Advertisers Section */
+            advertisersLoading && advertisers.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center py-20 text-slate-500 space-y-4">
+                <RefreshCw className="animate-spin text-indigo-600" size={36} />
+                <div className="text-center">
+                  <p className="text-sm font-bold text-slate-800">正在載入廣告主名單...</p>
+                  <p className="text-xs text-slate-400 font-medium">請稍候。</p>
                 </div>
-              )}
-
-              {/* Split Screen Application Workspace */}
-              {submissions.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                  
-                  {/* Left Column: Submissions lists, keyword searches, filtering */}
-                  <div className="lg:col-span-5">
-                    <SubmissionList
-                      submissions={submissions}
-                      selectedId={selectedId}
-                      onSelect={setSelectedId}
-                      filters={filters}
-                      onFiltersChange={setFilters}
-                    />
-                  </div>
-
-                  {/* Right Column: Full Details and workflow Audit card */}
-                  <div className="lg:col-span-7">
-                    <SubmissionDetail
-                      submission={selectedSubmission}
-                      onApprove={handleApprove}
-                      onReject={handleReject}
-                      onSaveNotes={handleSaveNotes}
-                    />
-                  </div>
+              </div>
+            ) : advertisers.length === 0 ? (
+              <div className="bg-slate-100/50 border border-dashed border-slate-300 rounded-2xl p-10 text-center space-y-4 max-w-2xl mx-auto my-6">
+                <div className="mx-auto w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-600">
+                  <Mail size={24} />
                 </div>
-              )}
-            </>
+                <div className="space-y-2">
+                  <h3 className="font-extrabold text-slate-800 text-lg">尚未有任何企業廣告主諮詢</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
+                    目前「企業廣告主諮詢」資料庫沒有任何資料。
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <AdvertiserListAndDetail advertisers={advertisers} />
+            )
           )}
         </main>
       </div>

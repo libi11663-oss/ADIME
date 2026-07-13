@@ -244,10 +244,10 @@ export default function SubmissionList({
                   isSelected ? "bg-indigo-50/30 border-l-4 border-indigo-500" : "border-l-4 border-transparent"
                 }`}
               >
-                <div className="flex justify-between items-start mb-1">
+                <div className="flex justify-between items-start mb-1.5">
                   <div className="flex items-center space-x-2">
-                    <span className="font-bold text-slate-800">{sub.name}</span>
-                    <span className="text-xs text-slate-500 font-medium">{sub.phone}</span>
+                    <span className="font-bold text-slate-800 text-sm">{sub.name}</span>
+                    <span className="text-xs text-slate-500 font-medium font-mono">{sub.phone}</span>
                   </div>
                   {/* Status badge */}
                   <span
@@ -262,23 +262,52 @@ export default function SubmissionList({
                   </span>
                 </div>
 
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-                  <div className="flex items-center space-x-0.5">
-                    <Bike size={12} className="text-slate-400" />
-                    <span className="font-medium">
+                <div className="flex flex-wrap gap-x-2.5 gap-y-1.5 text-xs text-slate-500 mt-2">
+                  {/* Vehicle Type & Model */}
+                  <div className="flex items-center space-x-1">
+                    <Bike size={12} className="text-indigo-500" />
+                    <span className="font-semibold text-slate-700">
                       {sub.vehicleType}
-                      {sub.plateNumber && sub.plateNumber !== "無" && ` (${sub.plateNumber})`}
+                      {(sub.motorcycleModel || sub.adLocation) && (
+                        <span className="text-slate-400 font-normal ml-1">
+                          ({sub.motorcycleModel || sub.adLocation})
+                        </span>
+                      )}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-0.5">
+
+                  {/* Delivery Platform */}
+                  <div className="flex items-center space-x-1">
                     <Smartphone size={12} className="text-slate-400" />
-                    <span className="bg-slate-100 text-slate-600 px-1.5 rounded text-[10px] font-bold">
-                      {sub.deliveryPlatform}
-                    </span>
+                    {(() => {
+                      const platform = sub.deliveryPlatform;
+                      let badgeStyle = "bg-slate-50 text-slate-600 border-slate-200";
+                      if (platform.includes("Foodpanda") || platform.toLowerCase().includes("panda") || platform.includes("熊貓")) {
+                        badgeStyle = "bg-pink-50 text-pink-600 border-pink-100";
+                      } else if (platform.includes("UberEats") || platform.toLowerCase().includes("uber") || platform.includes("優食")) {
+                        badgeStyle = "bg-emerald-50 text-emerald-600 border-emerald-100";
+                      } else if (platform.includes("Lalamove")) {
+                        badgeStyle = "bg-orange-50 text-orange-600 border-orange-100";
+                      }
+                      return (
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${badgeStyle}`}>
+                          {platform}
+                        </span>
+                      );
+                    })()}
                   </div>
+
+                  {/* Plate Number License Plate representation */}
+                  {sub.plateNumber && sub.plateNumber !== "無" && (
+                    <div className="flex items-center space-x-1">
+                      <span className="text-[10px] bg-white border border-slate-300 font-mono text-slate-800 px-1.5 py-0.5 rounded font-black shadow-2xs select-none uppercase">
+                        {sub.plateNumber}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex justify-between items-center mt-2.5 text-[11px] text-slate-400">
+                <div className="flex justify-between items-center mt-3 text-[11px] text-slate-400">
                   <div className="flex items-center space-x-0.5 font-medium">
                     <MapPin size={11} className="text-slate-400" />
                     <span>{sub.area}</span>
@@ -289,11 +318,20 @@ export default function SubmissionList({
                   </div>
                 </div>
 
-                {sub.memberId && (
-                  <div className="mt-2 inline-flex items-center bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-100 font-mono">
-                    會員號: {sub.memberId}
-                  </div>
-                )}
+                {/* Sub row: member ID or Note icon */}
+                <div className="flex justify-between items-center mt-2">
+                  {sub.memberId ? (
+                    <div className="inline-flex items-center bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-100 font-mono">
+                      會員號: {sub.memberId}
+                    </div>
+                  ) : <div />}
+
+                  {sub.notes && (
+                    <span className="text-[10px] text-indigo-500 font-bold bg-indigo-50/50 px-1.5 py-0.5 rounded flex items-center space-x-0.5 border border-indigo-100/50">
+                      <span>💬 有備註留言</span>
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })

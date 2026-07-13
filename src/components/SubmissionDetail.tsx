@@ -19,7 +19,12 @@ import {
   Edit2,
   Save,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  MessageSquare,
+  CreditCard,
+  Clock,
+  Map,
+  TrendingUp
 } from "lucide-react";
 
 // Pre-defined quick rejection reasons
@@ -280,7 +285,7 @@ ${rejectionReason.trim()}
             <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
               <h3 className="text-xs font-bold text-slate-400 flex items-center space-x-1 uppercase tracking-wider">
                 <User size={13} className="text-indigo-500" />
-                <span>聯絡資訊</span>
+                <span>聯絡資訊 & 帳戶</span>
               </h3>
 
               <div className="space-y-2 text-sm text-slate-700 font-medium">
@@ -290,19 +295,48 @@ ${rejectionReason.trim()}
                 </div>
                 <div className="flex items-center space-x-2">
                   <Mail size={14} className="text-slate-400" />
-                  <span className="break-all">{submission.email}</span>
+                  <span className="break-all">{submission.email || "無"}</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <MapPin size={14} className="text-slate-400" />
-                  <span>{submission.area}</span>
+                {submission.lineId && (
+                  <div className="flex items-center space-x-2">
+                    <MessageSquare size={14} className="text-emerald-500" />
+                    <span className="bg-emerald-50 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded border border-emerald-100 font-mono">
+                      LINE ID: {submission.lineId}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-start space-x-2">
+                  <MapPin size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <span className="text-slate-400 text-xs block font-bold leading-none mb-0.5">登記區域</span>
+                    <span>{submission.area}</span>
+                  </div>
                 </div>
+                {submission.address && (
+                  <div className="flex items-start space-x-2 pt-1 border-t border-slate-100">
+                    <MapPin size={14} className="text-indigo-500 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="text-slate-400 text-xs block font-bold leading-none mb-0.5">聯絡地址</span>
+                      <span className="text-xs">{submission.address}</span>
+                    </div>
+                  </div>
+                )}
+                {submission.bankAccount && (
+                  <div className="flex items-start space-x-2 pt-1.5 border-t border-slate-100">
+                    <CreditCard size={14} className="text-indigo-600 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="text-slate-400 text-xs block font-bold leading-none mb-0.5">銀行帳號</span>
+                      <span className="font-mono text-xs font-bold text-slate-800">{submission.bankAccount}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
               <h3 className="text-xs font-bold text-slate-400 flex items-center space-x-1 uppercase tracking-wider">
                 <Bike size={13} className="text-indigo-500" />
-                <span>外送載具與平台</span>
+                <span>外送載具、跑單與區域</span>
               </h3>
 
               <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
@@ -315,24 +349,77 @@ ${rejectionReason.trim()}
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">車牌號碼</span>
-                  <span className="font-bold font-mono mt-0.5 block text-slate-800">
-                    {submission.plateNumber || "無車牌"}
-                  </span>
+                  {submission.plateNumber && submission.plateNumber !== "無" ? (
+                    <div className="inline-block mt-1 px-3 py-1 bg-white border border-slate-400 rounded shadow-xs text-center min-w-[100px]">
+                      <div className="text-[8px] font-black text-slate-400 border-b border-slate-100 leading-none pb-0.5 tracking-widest uppercase">Taiwan</div>
+                      <div className="font-mono text-sm font-black text-slate-800 tracking-wider pt-0.5 leading-none">
+                        {submission.plateNumber}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="font-bold text-slate-500 mt-0.5 block text-xs">
+                      無車牌
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">外送平台</span>
-                  <span className="font-bold flex items-center space-x-1 mt-0.5">
-                    <Smartphone size={14} className="text-indigo-600" />
-                    <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-xs">
-                      {submission.deliveryPlatform}
-                    </span>
+                  <span className="font-bold flex items-center space-x-1 mt-1">
+                    <Smartphone size={13} className="text-indigo-600" />
+                    {(() => {
+                      const platform = submission.deliveryPlatform;
+                      let badgeStyle = "bg-slate-50 text-slate-700 border-slate-200";
+                      if (platform.includes("Foodpanda") || platform.toLowerCase().includes("panda") || platform.includes("熊貓")) {
+                        badgeStyle = "bg-pink-50 text-pink-700 border-pink-100";
+                      } else if (platform.includes("UberEats") || platform.toLowerCase().includes("uber") || platform.includes("優食")) {
+                        badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-100";
+                      } else if (platform.includes("Lalamove")) {
+                        badgeStyle = "bg-orange-50 text-orange-700 border-orange-100";
+                      }
+                      return (
+                        <span className={`px-2 py-0.5 rounded text-xs font-black border ${badgeStyle}`}>
+                          {platform}
+                        </span>
+                      );
+                    })()}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">廣告看板位置</span>
-                  <span className="font-bold text-xs mt-0.5 block text-slate-800">
-                    {submission.adLocation || "預設位置"}
+                  <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">機車車型</span>
+                  <span className="font-bold text-xs mt-1 block text-slate-800 bg-slate-100 px-2 py-1 rounded border border-slate-200 inline-block font-mono">
+                    {submission.motorcycleModel || submission.adLocation || "無"}
                   </span>
+                </div>
+                
+                {/* Custom fields row */}
+                <div className="col-span-2 pt-2 border-t border-slate-100 grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider flex items-center gap-1">
+                      <Map size={11} className="text-indigo-500" />
+                      <span>常跑縣市</span>
+                    </span>
+                    <span className="font-extrabold text-xs text-slate-800 mt-0.5 block">
+                      {submission.primaryRegion || submission.area || "未填寫"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider flex items-center gap-1">
+                      <TrendingUp size={11} className="text-indigo-500" />
+                      <span>平均跑單數</span>
+                    </span>
+                    <span className="font-extrabold text-xs text-slate-800 mt-0.5 block font-mono">
+                      {submission.weeklyOrders ? `${submission.weeklyOrders}` : "未填寫"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider flex items-center gap-1">
+                      <Clock size={11} className="text-indigo-500" />
+                      <span>每天時數</span>
+                    </span>
+                    <span className="font-extrabold text-xs text-slate-800 mt-0.5 block font-mono">
+                      {submission.dailyHours ? `${submission.dailyHours}` : "未填寫"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

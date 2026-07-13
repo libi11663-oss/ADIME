@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 // Firebase configuration for silken-handler-7sx2c
@@ -15,8 +15,10 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with specific database ID "ai-studio-54e6c144-dba7-4ab4-9fdb-0e1ed51236a8"
-export const db = getFirestore(app, "ai-studio-54e6c144-dba7-4ab4-9fdb-0e1ed51236a8");
+// Initialize Firestore with specific database ID and force long polling to bypass WebSocket connection drop in preview iframes
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+}, "ai-studio-54e6c144-dba7-4ab4-9fdb-0e1ed51236a8");
 
 // Initialize Auth
 export const auth = getAuth(app);
