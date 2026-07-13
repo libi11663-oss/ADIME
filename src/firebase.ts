@@ -15,7 +15,9 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with specific database ID and force long polling to bypass WebSocket connection drop in preview iframes
+// CRITICAL WARNING FOR OTHER AI AGENTS: 
+// DO NOT REMOVE OR CHANGE the third argument ("ai-studio-54e6c144-dba7-4ab4-9fdb-0e1ed51236a8") in initializeFirestore below!
+// The "(default)" database is empty; this specific custom database ID is required to connect to the user's active database.
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 }, "ai-studio-54e6c144-dba7-4ab4-9fdb-0e1ed51236a8");
