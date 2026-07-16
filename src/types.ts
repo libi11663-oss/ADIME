@@ -22,8 +22,19 @@ export interface Submission {
   primaryRegion?: string; // 常跑縣市
   weeklyOrders?: string;  // 平均跑單數
   dailyHours?: string;    // 每天時數
+  weeklyDays?: string;    // 每周天數
   address?: string;       // 聯絡地址
   bankAccount?: string;   // 銀行帳號
+  selectedDistricts?: string[] | string; // 選擇常跑的地區行政區
+  
+  // Dispatch properties
+  dispatchStatus?: "undispatched" | "dispatched" | "email_sent";
+  dispatchDays?: number;
+  dispatchTarget?: string; // 里程時數目標
+  dispatchedAt?: string;
+  dispatchStartDate?: string;
+  dispatchExpiry?: string;
+  dispatchEmailSent?: boolean;
 }
 
 export interface SubmissionFilter {

@@ -33,6 +33,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
   const [primaryRegion, setPrimaryRegion] = useState("");
   const [weeklyOrders, setWeeklyOrders] = useState("");
   const [dailyHours, setDailyHours] = useState("");
+  const [weeklyDays, setWeeklyDays] = useState("");
   const [address, setAddress] = useState("");
   const [bankAccount, setBankAccount] = useState("");
 
@@ -92,6 +93,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
         primaryRegion: primaryRegion.trim() || area.trim(),
         weeklyOrders: weeklyOrders.trim(),
         dailyHours: dailyHours.trim(),
+        weeklyDays: weeklyDays.trim(),
         address: address.trim(),
         bankAccount: bankAccount.trim(),
       });
@@ -111,6 +113,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
       setPrimaryRegion("");
       setWeeklyOrders("");
       setDailyHours("");
+      setWeeklyDays("");
       setAddress("");
       setBankAccount("");
       setAppliedAt(getLocalDateTimeString(new Date()));
@@ -350,22 +353,32 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">平均跑單數 (每週或每日)</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">平均跑單數</label>
                 <input
                   type="text"
-                  placeholder="例：150 單/週 或 25 單/日"
+                  placeholder="例：150單/週"
                   className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
                   value={weeklyOrders}
                   onChange={(e) => setWeeklyOrders(e.target.value)}
                 />
               </div>
               <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">每週天數</label>
+                <input
+                  type="text"
+                  placeholder="例：5天"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
+                  value={weeklyDays}
+                  onChange={(e) => setWeeklyDays(e.target.value)}
+                />
+              </div>
+              <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">每天時數</label>
                 <input
                   type="text"
-                  placeholder="例：8 小時"
+                  placeholder="例：8小時"
                   className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
                   value={dailyHours}
                   onChange={(e) => setDailyHours(e.target.value)}

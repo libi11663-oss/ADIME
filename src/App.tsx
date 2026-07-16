@@ -9,6 +9,7 @@ import SubmissionList from "./components/SubmissionList";
 import SubmissionDetail from "./components/SubmissionDetail";
 import AddSubmissionModal from "./components/AddSubmissionModal";
 import AdvertiserListAndDetail from "./components/AdvertiserListAndDetail";
+import { DispatchManagement } from "./components/DispatchManagement";
 import {
   RefreshCw,
   Layers,
@@ -33,7 +34,8 @@ import {
   CreditCard,
   Clock,
   Map,
-  TrendingUp
+  TrendingUp,
+  Send
 } from "lucide-react";
 
 export default function App() {
@@ -62,6 +64,7 @@ export default function App() {
   const [pubPrimaryRegion, setPubPrimaryRegion] = useState("");
   const [pubWeeklyOrders, setPubWeeklyOrders] = useState("");
   const [pubDailyHours, setPubDailyHours] = useState("");
+  const [pubWeeklyDays, setPubWeeklyDays] = useState("");
   const [pubAddress, setPubAddress] = useState("");
   const [pubBankAccount, setPubBankAccount] = useState("");
 
@@ -93,7 +96,7 @@ export default function App() {
   });
 
   // Advertiser CRM state
-  const [crmTab, setCrmTab] = useState<"riders" | "advertisers">("riders");
+  const [crmTab, setCrmTab] = useState<"riders" | "advertisers" | "dispatch">("riders");
   const [advertisers, setAdvertisers] = useState<AdvertiserSubmission[]>([]);
   const [selectedAdvertiserId, setSelectedAdvertiserId] = useState<string | null>(null);
   const [advertisersLoading, setAdvertisersLoading] = useState(true);
@@ -130,13 +133,13 @@ export default function App() {
               city: data.city || "",
               createdAt: data.createdAt || new Date().toISOString(),
               role: data.role || "advertiser",
-              dailyHours: data.dailyHours || "",
-              weeklyDays: data.weeklyDays || "",
-              scooterModel: data.scooterModel || "",
+              dailyHours: data.dailyHours || data.daily_hours || "",
+              weeklyDays: data.weeklyDays || data.weekly_days || "",
+              scooterModel: data.scooterModel || data.scooter_model || data.motorcycleModel || data.motorcycle_model || "",
               address: data.address || "",
-              licensePlate: data.licensePlate || "",
-              primaryRegion: data.primaryRegion || "",
-              deliveryPlatform: data.deliveryPlatform || "",
+              licensePlate: data.licensePlate || data.license_plate || data.plateNumber || data.plate_number || "",
+              primaryRegion: data.primaryRegion || data.primary_region || "",
+              deliveryPlatform: data.deliveryPlatform || data.delivery_platform || "",
             });
           });
 
@@ -200,7 +203,7 @@ export default function App() {
             }
 
             // Safe plate number extraction
-            const parsedPlateNumber = data.plateNumber || data.plate_number || "無";
+            const parsedPlateNumber = data.plateNumber || data.plate_number || data.licensePlate || data.license_plate || "無";
 
             list.push({
               id: docId,
@@ -212,7 +215,7 @@ export default function App() {
               deliveryPlatform: normalizedPlatform,
               area: data.area || "",
               adLocation: data.adLocation || "",
-              motorcycleModel: data.motorcycleModel || data.motorcycle_model || data.adLocation || "無",
+              motorcycleModel: data.motorcycleModel || data.motorcycle_model || data.scooterModel || data.scooter_model || data.adLocation || "無",
               photoUrl: data.photoUrl || "",
               status: data.status || "pending",
               memberId: data.memberId || "",
@@ -248,8 +251,17 @@ export default function App() {
               primaryRegion: data.primaryRegion || data.primary_region || data.city || data.area || "",
               weeklyOrders: data.weeklyOrders || data.weekly_orders || "",
               dailyHours: data.dailyHours || data.daily_hours || "",
+              weeklyDays: data.weeklyDays || data.weekly_days || "",
               address: data.address || "",
               bankAccount: data.bankAccount || data.bank_account || "",
+              selectedDistricts: data.selectedDistricts || data.selected_districts || "",
+              dispatchStatus: data.dispatchStatus || "undispatched",
+              dispatchDays: data.dispatchDays || null,
+              dispatchTarget: data.dispatchTarget || null,
+              dispatchedAt: data.dispatchedAt || null,
+              dispatchStartDate: data.dispatchStartDate || null,
+              dispatchExpiry: data.dispatchExpiry || null,
+              dispatchEmailSent: !!data.dispatchEmailSent,
             });
           });
 
@@ -336,6 +348,65 @@ export default function App() {
     }
   };
 
+  // Dispatch task action
+  const handleDispatchTask = async (
+    id: string, 
+    days: number, 
+    target: string, 
+    startDate?: string, 
+    endDate?: string,
+    status: "dispatched" | "email_sent" = "dispatched"
+  ) => {
+    try {
+      const docRef = doc(db, "submissions", id);
+      const dispatchedAt = status === "dispatched" ? new Date().toISOString() : null;
+      const finalStartDate = startDate || new Date().toISOString().split("T")[0];
+      const finalEndDate = endDate || (() => {
+        const d = new Date(finalStartDate);
+        d.setDate(d.getDate() + days);
+        return d.toISOString().split("T")[0];
+      })();
+      
+      await updateDoc(docRef, {
+        dispatchStatus: status,
+        dispatchDays: days,
+        dispatchTarget: target,
+        dispatchedAt: dispatchedAt,
+        dispatchStartDate: finalStartDate,
+        dispatchExpiry: finalEndDate,
+        dispatchEmailSent: true,
+      });
+      if (status === "dispatched") {
+        setStatusMsg({ text: "已成功開始派發廣告任務！", type: "success" });
+      } else {
+        setStatusMsg({ text: "已成功寄送派發通知信件（外送員維持於未派發狀態）", type: "success" });
+      }
+    } catch (e) {
+      console.error("Error dispatching task:", e);
+      throw e;
+    }
+  };
+
+  // Cancel/Reset dispatch action
+  const handleCancelDispatch = async (id: string) => {
+    try {
+      const docRef = doc(db, "submissions", id);
+      await updateDoc(docRef, {
+        dispatchStatus: "undispatched",
+        dispatchDays: null,
+        dispatchTarget: null,
+        dispatchedAt: null,
+        dispatchStartDate: null,
+        dispatchExpiry: null,
+        dispatchEmailSent: false,
+      });
+      setStatusMsg({ text: "已成功取消/重設廣告指派任務", type: "success" });
+    } catch (e) {
+      console.error("Error resetting dispatch:", e);
+      throw e;
+    }
+  };
+
   // Clear all submissions from database
   const handleClearAll = async () => {
     if (!window.confirm("確定要刪除資料庫中的所有外送員申請檔案嗎？此動作無法復原。")) {
@@ -407,6 +478,7 @@ export default function App() {
         primaryRegion: pubPrimaryRegion.trim() || pubArea.trim(),
         weeklyOrders: pubWeeklyOrders.trim(),
         dailyHours: pubDailyHours.trim(),
+        weeklyDays: pubWeeklyDays.trim(),
         address: pubAddress.trim(),
         bankAccount: pubBankAccount.trim(),
       });
@@ -426,6 +498,7 @@ export default function App() {
       setPubPrimaryRegion("");
       setPubWeeklyOrders("");
       setPubDailyHours("");
+      setPubWeeklyDays("");
       setPubAddress("");
       setPubBankAccount("");
       setPubAppliedAt(getLocalDateTimeString(new Date()));
@@ -761,7 +834,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
                           平均跑單數 (每週或每日)
@@ -773,6 +846,22 @@ export default function App() {
                             placeholder="例：150 單/週"
                             value={pubWeeklyOrders}
                             onChange={(e) => setPubWeeklyOrders(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                          每週天數
+                        </label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                          <input
+                            type="text"
+                            placeholder="例：5 天"
+                            value={pubWeeklyDays}
+                            onChange={(e) => setPubWeeklyDays(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
                           />
                         </div>
@@ -963,6 +1052,21 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setCrmTab("dispatch")}
+              className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
+                crmTab === "dispatch"
+                  ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/30"
+                  : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700"
+              }`}
+              title="廣告任務派發"
+            >
+              <Send size={20} />
+              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
+                廣告任務派發
+              </span>
+            </button>
+
+            <button
               onClick={() => setCrmTab("advertisers")}
               className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
                 crmTab === "advertisers"
@@ -1081,7 +1185,7 @@ export default function App() {
         {/* Scrollable Main Content Frame */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
           {/* Segmented Control Tab Switcher for CRM Section */}
-          <div className="flex bg-slate-200/70 p-1 rounded-xl max-w-sm border border-slate-300/40 select-none">
+          <div className="flex bg-slate-200/70 p-1 rounded-xl max-w-xl border border-slate-300/40 select-none">
             <button
               onClick={() => setCrmTab("riders")}
               className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
@@ -1092,6 +1196,17 @@ export default function App() {
             >
               <Layers size={13} />
               <span>外送夥伴審核 ({submissions.length})</span>
+            </button>
+            <button
+              onClick={() => setCrmTab("dispatch")}
+              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                crmTab === "dispatch"
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Send size={13} />
+              <span>任務指派 ({submissions.filter(sub => sub.status === "approved").length})</span>
             </button>
             <button
               onClick={() => setCrmTab("advertisers")}
@@ -1171,6 +1286,12 @@ export default function App() {
                 )}
               </>
             )
+          ) : crmTab === "dispatch" ? (
+            <DispatchManagement
+              submissions={submissions}
+              onDispatch={handleDispatchTask}
+              onCancelDispatch={handleCancelDispatch}
+            />
           ) : (
             /* Advertisers Section */
             advertisersLoading && advertisers.length === 0 ? (

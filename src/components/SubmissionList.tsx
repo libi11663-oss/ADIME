@@ -2,6 +2,121 @@ import React, { useState, useMemo, ChangeEvent } from "react";
 import { Submission, SubmissionFilter } from "../types";
 import { Search, MapPin, Bike, Smartphone, Calendar, ArrowUpDown, Filter, X } from "lucide-react";
 
+export function getFormattedRegion(sub: Submission): string {
+  const area = (sub.area || "").trim();
+  const address = (sub.address || "").trim();
+  const primary = (sub.primaryRegion || "").trim();
+
+  // Parse selectedDistricts
+  let dists: string[] = [];
+  if (sub.selectedDistricts) {
+    const sd = sub.selectedDistricts;
+    if (Array.isArray(sd)) {
+      dists = sd;
+    } else if (typeof sd === "string") {
+      const trimmed = sd.trim();
+      if (trimmed.startsWith("[")) {
+        try {
+          dists = JSON.parse(trimmed);
+        } catch {
+          dists = trimmed.split(/[,，、\s]+/).filter(Boolean);
+        }
+      } else {
+        dists = trimmed.split(/[,，、\s]+/).filter(Boolean);
+      }
+    }
+  }
+
+  const mainCities = [
+    "台北市", "新北市", "基隆市", "桃園市", "新竹縣", "新竹市", 
+    "苗栗縣", "台中市", "彰化縣", "南投縣", "雲林縣", "嘉義縣", 
+    "嘉義市", "台南市", "高雄市", "屏東縣", "宜蘭縣", "花蓮縣", 
+    "台東縣", "澎湖縣", "金門縣", "連江縣"
+  ];
+
+  // Detect city
+  let detectedCity = "";
+  for (const cand of [area, primary, address]) {
+    for (const city of mainCities) {
+      if (cand.includes(city)) {
+        detectedCity = city;
+        break;
+      }
+    }
+    if (detectedCity) break;
+  }
+
+  if (dists.length > 0) {
+    const cleanDists = dists.map(d => {
+      let clean = d.trim();
+      if (detectedCity && clean.startsWith(detectedCity)) {
+        clean = clean.slice(detectedCity.length);
+      }
+      return clean;
+    }).filter(Boolean);
+    
+    if (detectedCity) {
+      return detectedCity + cleanDists.join("、");
+    }
+    return cleanDists.join("、");
+  }
+
+  // Candidates for extraction
+  const candidates = [area, address, primary].filter(Boolean);
+
+  for (const cand of candidates) {
+    for (const city of mainCities) {
+      if (cand.includes(city)) {
+        const idx = cand.indexOf(city);
+        const afterCity = cand.slice(idx + city.length).trim();
+        const distMatch = afterCity.match(/^([^區鄉鎮市\s]{1,5}[區鄉鎮市])/);
+        if (distMatch && distMatch[1]) {
+          return city + distMatch[1];
+        }
+      }
+    }
+  }
+
+  for (const cand of candidates) {
+    const distMatch = cand.match(/([^區鄉鎮市\s]{1,5}[區鄉鎮])/);
+    if (distMatch && distMatch[1]) {
+      let cityPrefix = "";
+      for (const city of mainCities) {
+        if (candidates.some(c => c.includes(city))) {
+          cityPrefix = city;
+          break;
+        }
+      }
+      return cityPrefix + distMatch[1];
+    }
+  }
+
+  // Common district names search
+  const commonDistricts = ["新莊", "板橋", "中和", "永和", "三重", "新店", "大安", "信義", "中山", "內湖", "士林"];
+  for (const cand of candidates) {
+    for (const dist of commonDistricts) {
+      if (cand.includes(dist)) {
+        let cityPrefix = "";
+        for (const city of mainCities) {
+          if (candidates.some(c => c.includes(city))) {
+            cityPrefix = city;
+            break;
+          }
+        }
+        return cityPrefix + dist + (dist.endsWith("區") ? "" : "區");
+      }
+    }
+  }
+
+  // If we have any of the candidates, return the first non-empty one
+  const longest = candidates.sort((a, b) => b.length - a.length)[0];
+  if (longest) {
+    return longest;
+  }
+
+  return "未設定地區";
+}
+
 interface SubmissionListProps {
   submissions: Submission[];
   selectedId: string | null;
@@ -48,6 +163,12 @@ export default function SubmissionList({
       .filter((sub) => {
         // Keyword Search (Name, Phone, Email, PlateNumber, MemberID, Area)
         const query = filters.search.toLowerCase().trim();
+        const formattedRegion = getFormattedRegion(sub).toLowerCase();
+        const districtsStr = Array.isArray(sub.selectedDistricts)
+          ? sub.selectedDistricts.join(",")
+          : typeof sub.selectedDistricts === "string"
+          ? sub.selectedDistricts
+          : "";
         const matchesSearch =
           !query ||
           sub.name.toLowerCase().includes(query) ||
@@ -55,7 +176,12 @@ export default function SubmissionList({
           sub.email.toLowerCase().includes(query) ||
           (sub.plateNumber && sub.plateNumber.toLowerCase().includes(query)) ||
           (sub.memberId && sub.memberId.toLowerCase().includes(query)) ||
-          sub.area.toLowerCase().includes(query);
+          formattedRegion.includes(query) ||
+          (sub.area && sub.area.toLowerCase().includes(query)) ||
+          (sub.primaryRegion && sub.primaryRegion.toLowerCase().includes(query)) ||
+          (sub.address && sub.address.toLowerCase().includes(query)) ||
+          (sub.notes && sub.notes.toLowerCase().includes(query)) ||
+          districtsStr.toLowerCase().includes(query);
 
         // Status Filter
         const matchesStatus = filters.status === "all" || sub.status === filters.status;
@@ -308,13 +434,15 @@ export default function SubmissionList({
                 </div>
 
                 <div className="flex justify-between items-center mt-3 text-[11px] text-slate-400">
-                  <div className="flex items-center space-x-0.5 font-medium">
-                    <MapPin size={11} className="text-slate-400" />
-                    <span>{sub.area}</span>
+                  <div className="flex items-center space-x-1 font-medium w-[65%] overflow-hidden">
+                    <MapPin size={11} className="text-indigo-500 shrink-0" />
+                    <span className="truncate text-slate-700 font-bold" title={`登記服務區域: ${sub.area || "無"} | 常跑地區: ${sub.primaryRegion || "無"} | 聯絡地址: ${sub.address || "無"}`}>
+                      {getFormattedRegion(sub)}
+                    </span>
                   </div>
-                  <div className="flex items-center space-x-0.5 font-mono text-[10px]">
-                    <Calendar size={11} className="text-slate-400" />
-                    <span>{formatDate(sub.appliedAt)}</span>
+                  <div className="flex items-center space-x-0.5 font-mono text-[10px] w-[35%] justify-end shrink-0">
+                    <Calendar size={11} className="text-slate-400 shrink-0" />
+                    <span className="truncate">{formatDate(sub.appliedAt)}</span>
                   </div>
                 </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Submission } from "../types";
+import { getFormattedRegion } from "./SubmissionList";
 import {
   User,
   Phone,
@@ -306,10 +307,10 @@ ${rejectionReason.trim()}
                   </div>
                 )}
                 <div className="flex items-start space-x-2">
-                  <MapPin size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                  <MapPin size={14} className="text-indigo-500 mt-0.5 shrink-0" />
                   <div>
-                    <span className="text-slate-400 text-xs block font-bold leading-none mb-0.5">登記區域</span>
-                    <span>{submission.area}</span>
+                    <span className="text-slate-400 text-xs block font-bold leading-none mb-0.5">登記區域 / 服務行政區</span>
+                    <span className="text-sm font-bold text-slate-800">{getFormattedRegion(submission)}</span>
                   </div>
                 </div>
                 {submission.address && (
@@ -318,6 +319,45 @@ ${rejectionReason.trim()}
                     <div>
                       <span className="text-slate-400 text-xs block font-bold leading-none mb-0.5">聯絡地址</span>
                       <span className="text-xs">{submission.address}</span>
+                    </div>
+                  </div>
+                )}
+                {submission.selectedDistricts && (
+                  <div className="flex items-start space-x-2 pt-1.5 border-t border-slate-100">
+                    <MapPin size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="text-slate-400 text-xs block font-bold leading-none mb-1">常跑區域 (selectedDistricts)</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(() => {
+                          const sd = submission.selectedDistricts;
+                          let arr: string[] = [];
+                          if (Array.isArray(sd)) {
+                            arr = sd;
+                          } else if (typeof sd === "string") {
+                            const trimmed = sd.trim();
+                            if (trimmed.startsWith("[")) {
+                              try {
+                                arr = JSON.parse(trimmed);
+                              } catch {
+                                arr = trimmed.split(/[,，、\s]+/).filter(Boolean);
+                              }
+                            } else {
+                              arr = trimmed.split(/[,，、\s]+/).filter(Boolean);
+                            }
+                          }
+                          if (arr.length === 0) {
+                            return <span className="text-xs text-slate-400">無</span>;
+                          }
+                          return arr.map((dist, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-emerald-50 text-emerald-700 text-[11px] font-bold px-2 py-0.5 rounded border border-emerald-100"
+                            >
+                              {dist}
+                            </span>
+                          ));
+                        })()}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -409,6 +449,15 @@ ${rejectionReason.trim()}
                     </span>
                     <span className="font-extrabold text-xs text-slate-800 mt-0.5 block font-mono">
                       {submission.weeklyOrders ? `${submission.weeklyOrders}` : "未填寫"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider flex items-center gap-1">
+                      <Calendar size={11} className="text-indigo-500" />
+                      <span>每周天數</span>
+                    </span>
+                    <span className="font-extrabold text-xs text-slate-800 mt-0.5 block font-mono">
+                      {submission.weeklyDays ? `${submission.weeklyDays}` : "未填寫"}
                     </span>
                   </div>
                   <div>
