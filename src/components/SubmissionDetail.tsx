@@ -39,13 +39,79 @@ const QUICK_REJECTIONS = [
 
 interface SubmissionDetailProps {
   submission: Submission | null;
+  submissions: Submission[];
   onApprove: (id: string, memberId: string) => Promise<void>;
   onReject: (id: string, reason: string) => Promise<void>;
   onSaveNotes: (id: string, notes: string) => Promise<void>;
 }
 
+// Helper to get Taiwan ID Card County/City Letter
+function getTaiwanCountyLetter(area: string): string {
+  if (!area) return "A";
+  const str = area.trim();
+  if (str.includes("台北") || str.includes("臺北")) return "A";
+  if (str.includes("台中") || str.includes("臺中")) return "B";
+  if (str.includes("基隆")) return "C";
+  if (str.includes("台南") || str.includes("臺南")) return "D";
+  if (str.includes("高雄")) return "E";
+  if (str.includes("新北")) return "F";
+  if (str.includes("宜蘭")) return "G";
+  if (str.includes("桃園")) return "H";
+  if (str.includes("嘉義市")) return "I";
+  if (str.includes("新竹縣")) return "J";
+  if (str.includes("苗栗")) return "K";
+  if (str.includes("南投")) return "M";
+  if (str.includes("彰化")) return "N";
+  if (str.includes("新竹市")) return "O";
+  if (str.includes("新竹")) return "O"; // general fallback for Hsinchu
+  if (str.includes("雲林")) return "P";
+  if (str.includes("嘉義縣") || (str.includes("嘉義") && !str.includes("市"))) return "Q";
+  if (str.includes("屏東")) return "T";
+  if (str.includes("花蓮")) return "U";
+  if (str.includes("台東") || str.includes("臺東")) return "V";
+  if (str.includes("金門")) return "W";
+  if (str.includes("澎湖")) return "X";
+  if (str.includes("連江")) return "Z";
+  return "A"; // default to A
+}
+
+// Generate the specific Taiwan county + workType prefix + year/month sequential ID
+function generateMemberId(sub: Submission, allSubmissions: Submission[]): string {
+  const combinedLocation = `${sub.primaryRegion || ""} ${sub.area || ""} ${sub.address || ""}`;
+  const firstLetter = getTaiwanCountyLetter(combinedLocation);
+  
+  const workTypeNormalized = (sub.workType || "").trim();
+  const secondLetter = workTypeNormalized === "正職" ? "F" : "P";
+  
+  const now = new Date();
+  const yearPart = String(now.getFullYear()).slice(-2); // e.g. "26"
+  const monthPart = String(now.getMonth() + 1); // e.g. "7"
+  
+  // Find current maximum serial for this month and year
+  const regex = new RegExp(`^[A-Z]{2}${yearPart}${monthPart}(\\d{3})$`);
+  let maxSerial = 0;
+  
+  allSubmissions.forEach(s => {
+    if (s.memberId) {
+      const match = s.memberId.match(regex);
+      if (match) {
+        const seq = parseInt(match[1], 10);
+        if (seq > maxSerial) {
+          maxSerial = seq;
+        }
+      }
+    }
+  });
+  
+  const nextSerial = maxSerial + 1;
+  const serialPart = String(nextSerial).padStart(3, "0"); // e.g. "001"
+  
+  return `${firstLetter}${secondLetter}${yearPart}${monthPart}${serialPart}`;
+}
+
 export default function SubmissionDetail({
   submission,
+  submissions = [],
   onApprove,
   onReject,
   onSaveNotes,
@@ -61,10 +127,10 @@ export default function SubmissionDetail({
   const [notesText, setNotesText] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
-
+ 
   // Status updates
   const [submitting, setSubmitting] = useState(false);
-
+ 
   // Email Notification States
   const [sendEmailNotify, setSendEmailNotify] = useState(true);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -72,7 +138,7 @@ export default function SubmissionDetail({
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [copiedEmail, setCopiedEmail] = useState(false);
-
+ 
   // Update states when selected submission changes
   useEffect(() => {
     if (submission) {
@@ -88,11 +154,9 @@ export default function SubmissionDetail({
       if (submission.memberId) {
         setMemberIdInput(submission.memberId);
       } else {
-        // Generate a random-looking elegant 5-digit number starting with CX-10
-        const randomNum = Math.floor(10200 + Math.random() * 800);
-        setMemberIdInput(`CX-${randomNum}`);
+        setMemberIdInput(generateMemberId(submission, submissions));
       }
-
+ 
       const reasonStr = submission.rejectionReason || "";
       setRejectionReason(reasonStr);
       
@@ -100,8 +164,8 @@ export default function SubmissionDetail({
       const matched = QUICK_REJECTIONS.filter(r => reasonStr.includes(r));
       setSelectedReasons(matched);
     }
-  }, [submission]);
-
+  }, [submission, submissions]);
+ 
   if (!submission) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center h-[calc(100vh-180px)] min-h-[500px] p-8 text-center text-slate-400">
@@ -115,7 +179,7 @@ export default function SubmissionDetail({
       </div>
     );
   }
-
+ 
   // Toggle quick rejection reason
   const handleToggleReason = (reason: string) => {
     let nextReasons: string[];
@@ -127,11 +191,10 @@ export default function SubmissionDetail({
     setSelectedReasons(nextReasons);
     setRejectionReason(nextReasons.join("\n"));
   };
-
+ 
   // Auto generate new member ID
   const handleRegenerateId = () => {
-    const randomNum = Math.floor(10200 + Math.random() * 800);
-    setMemberIdInput(`CX-${randomNum}`);
+    setMemberIdInput(generateMemberId(submission, submissions));
   };
 
   // Notes save handler
@@ -170,8 +233,11 @@ export default function SubmissionDetail({
 
 ■ 會員編號：${memberIdInput.trim()}
 ■ 外送平台：${submission.deliveryPlatform}
+■ 外送員屬性：${submission.workType || "兼職"}
 ■ 服務區域：${submission.area}
 ■ 載具類型：${submission.vehicleType} (車牌：${submission.plateNumber || "無"})
+
+請於廣告合作生效日前安裝並回報照片完成。
 
 我們後續將會有專員與您聯繫，協助進行廣告看板的安裝事宜。
 若有任何疑問，歡迎隨時回覆本信。
@@ -428,6 +494,18 @@ ${rejectionReason.trim()}
                   <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">機車車型</span>
                   <span className="font-bold text-xs mt-1 block text-slate-800 bg-slate-100 px-2 py-1 rounded border border-slate-200 inline-block font-mono">
                     {submission.motorcycleModel || submission.adLocation || "無"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">外送員屬性</span>
+                  <span className="font-bold flex items-center space-x-1 mt-1">
+                    <span className={`px-2 py-0.5 rounded text-xs font-black border ${
+                      submission.workType === "正職"
+                        ? "bg-purple-50 text-purple-700 border-purple-100"
+                        : "bg-indigo-50 text-indigo-700 border-indigo-100"
+                    }`}>
+                      {submission.workType || "兼職"}
+                    </span>
                   </span>
                 </div>
                 

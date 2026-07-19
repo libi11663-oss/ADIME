@@ -36,6 +36,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
   const [weeklyDays, setWeeklyDays] = useState("");
   const [address, setAddress] = useState("");
   const [bankAccount, setBankAccount] = useState("");
+  const [workType, setWorkType] = useState("兼職");
 
   if (!isOpen) return null;
 
@@ -96,6 +97,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
         weeklyDays: weeklyDays.trim(),
         address: address.trim(),
         bankAccount: bankAccount.trim(),
+        workType,
       });
       
       // Reset form
@@ -116,6 +118,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
       setWeeklyDays("");
       setAddress("");
       setBankAccount("");
+      setWorkType("兼職");
       setAppliedAt(getLocalDateTimeString(new Date()));
       onClose();
     } catch (error) {
@@ -330,7 +333,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
           <div className="border-t border-slate-100 pt-3 space-y-3">
             <h4 className="text-xs font-black text-indigo-600 uppercase tracking-wider">跑單及帳戶詳細資料</h4>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">LINE ID</label>
                 <input
@@ -350,6 +353,17 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
                   value={primaryRegion}
                   onChange={(e) => setPrimaryRegion(e.target.value)}
                 />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">外送員屬性 <span className="text-rose-500">*</span></label>
+                <select
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold text-slate-800"
+                  value={workType}
+                  onChange={(e) => setWorkType(e.target.value)}
+                >
+                  <option value="兼職">兼職</option>
+                  <option value="正職">正職</option>
+                </select>
               </div>
             </div>
 

@@ -14,6 +14,7 @@ export const MOCK_SUBMISSIONS = [
     adLocation: "外送箱後方主要看板",
     photoUrl: "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80",
     status: "pending",
+    workType: "兼職",
     appliedAt: new Date(Date.now() - 3 * 3600 * 1000 * 24).toISOString(), // 3 days ago
     notes: "平日晚上跟假日跑單為主，希望能盡快安裝廣告箱。"
   },
@@ -28,6 +29,7 @@ export const MOCK_SUBMISSIONS = [
     adLocation: "外送箱雙側海報",
     photoUrl: "https://images.unsplash.com/photo-1571333250630-f0230c320b6d?w=600&auto=format&fit=crop&q=80",
     status: "pending",
+    workType: "正職",
     appliedAt: new Date(Date.now() - 1 * 3600 * 1000 * 24).toISOString(), // 1 day ago
     notes: "專職熊貓外送員，平均每週上線 50 小時以上，曝光度極高！"
   },
@@ -43,6 +45,7 @@ export const MOCK_SUBMISSIONS = [
     photoUrl: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600&auto=format&fit=crop&q=80",
     status: "approved",
     memberId: "CX-10204",
+    workType: "正職",
     appliedAt: new Date(Date.now() - 5 * 3600 * 1000 * 24).toISOString(), // 5 days ago
     reviewedAt: new Date(Date.now() - 4 * 3600 * 1000 * 24).toISOString(),
     notes: "大件物品外送專車，車身有防雨罩。"
@@ -59,6 +62,7 @@ export const MOCK_SUBMISSIONS = [
     photoUrl: "https://images.unsplash.com/photo-1497515114629-f71d768fd07c?w=600&auto=format&fit=crop&q=80",
     status: "rejected",
     rejectionReason: "自行車廣告可視面積太小，且活動範圍較小，不符合本次外送箱廣告看板推廣計畫。",
+    workType: "兼職",
     appliedAt: new Date(Date.now() - 7 * 3600 * 1000 * 24).toISOString(), // 7 days ago
     reviewedAt: new Date(Date.now() - 6 * 3600 * 1000 * 24).toISOString(),
     notes: "台北大安市區短程外送員。"
@@ -74,6 +78,7 @@ export const MOCK_SUBMISSIONS = [
     adLocation: "外送箱後方主要看板",
     photoUrl: "https://images.unsplash.com/photo-1526367790999-0150786486a9?w=600&auto=format&fit=crop&q=80",
     status: "pending",
+    workType: "正職",
     appliedAt: new Date(Date.now() - 12 * 3600 * 1000).toISOString(), // 12 hours ago
     notes: "跑私人餐廳合作外送，常駐高雄火車站周邊，車流人流大。"
   },
@@ -89,6 +94,7 @@ export const MOCK_SUBMISSIONS = [
     photoUrl: "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80",
     status: "approved",
     memberId: "CX-10205",
+    workType: "兼職",
     appliedAt: new Date(Date.now() - 4 * 3600 * 1000 * 24).toISOString(),
     reviewedAt: new Date(Date.now() - 3 * 3600 * 1000 * 24).toISOString(),
     notes: "兼職外送，通常跑中壢市區與中原大學附近。"

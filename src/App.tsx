@@ -29,6 +29,7 @@ import {
   Image as ImageIcon,
   Check,
   ChevronRight,
+  ChevronLeft,
   Calendar,
   MessageSquare,
   CreditCard,
@@ -39,6 +40,23 @@ import {
 } from "lucide-react";
 
 export default function App() {
+  // Toggle database source between custom database ID and (default) database
+  const [isDbConfigOpen, setIsDbConfigOpen] = useState(false);
+  const [dbTypeSetting, setDbTypeSetting] = useState(() => {
+    return localStorage.getItem("crm_firestore_db_type") || "custom";
+  });
+  const [customDbIdInput, setCustomDbIdInput] = useState(() => {
+    return localStorage.getItem("crm_firestore_db_custom_id") || "ai-studio-54e6c144-dba7-4ab4-9fdb-0e1ed51236a8";
+  });
+
+  const saveDbConfiguration = (type: "custom" | "default", customId: string) => {
+    localStorage.setItem("crm_firestore_db_type", type);
+    if (type === "custom") {
+      localStorage.setItem("crm_firestore_db_custom_id", customId.trim());
+    }
+    window.location.reload();
+  };
+
   // Admin password authorization state
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem("crm_admin_authenticated") === "true";
@@ -67,6 +85,7 @@ export default function App() {
   const [pubWeeklyDays, setPubWeeklyDays] = useState("");
   const [pubAddress, setPubAddress] = useState("");
   const [pubBankAccount, setPubBankAccount] = useState("");
+  const [pubWorkType, setPubWorkType] = useState("兼職");
 
   const [pubSubmitting, setPubSubmitting] = useState(false);
   const [pubSuccess, setPubSuccess] = useState(false);
@@ -100,6 +119,7 @@ export default function App() {
   const [advertisers, setAdvertisers] = useState<AdvertiserSubmission[]>([]);
   const [selectedAdvertiserId, setSelectedAdvertiserId] = useState<string | null>(null);
   const [advertisersLoading, setAdvertisersLoading] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Fetch / sync advertiser submissions in real-time
   useEffect(() => {
@@ -255,6 +275,7 @@ export default function App() {
               address: data.address || "",
               bankAccount: data.bankAccount || data.bank_account || "",
               selectedDistricts: data.selectedDistricts || data.selected_districts || "",
+              workType: data.workType || "兼職",
               dispatchStatus: data.dispatchStatus || "undispatched",
               dispatchDays: data.dispatchDays || null,
               dispatchTarget: data.dispatchTarget || null,
@@ -276,6 +297,17 @@ export default function App() {
           if (!isSubscribed) return;
           console.error("Firebase sync error:", error);
           const errorMsg = error instanceof Error ? error.message : String(error);
+          
+          const currentType = localStorage.getItem("crm_firestore_db_type") || "custom";
+          if (currentType === "custom" && (errorMsg.toLowerCase().includes("not-found") || errorMsg.toLowerCase().includes("not found") || errorMsg.toLowerCase().includes("database"))) {
+            setStatusMsg({ text: "偵測到專屬資料庫不存在/無法連線，將於 1.5 秒後自動切換至預設 (default) 資料庫並重新整理...", type: "info" });
+            localStorage.setItem("crm_firestore_db_type", "default");
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
+            return;
+          }
+
           setStatusMsg({ text: `讀取資料失敗: ${errorMsg} (請確認 Firebase 權限與連線)`, type: "error" });
           setLoading(false);
         }
@@ -481,6 +513,7 @@ export default function App() {
         weeklyDays: pubWeeklyDays.trim(),
         address: pubAddress.trim(),
         bankAccount: pubBankAccount.trim(),
+        workType: pubWorkType,
       });
 
       // Clear public states
@@ -501,6 +534,7 @@ export default function App() {
       setPubWeeklyDays("");
       setPubAddress("");
       setPubBankAccount("");
+      setPubWorkType("兼職");
       setPubAppliedAt(getLocalDateTimeString(new Date()));
       
       setPubSuccess(true);
@@ -800,7 +834,7 @@ export default function App() {
                   <div className="border-t border-slate-800 pt-4 space-y-4">
                     <h4 className="text-xs font-black text-indigo-400 uppercase tracking-wider">跑單及帳戶詳細資料</h4>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
                           LINE ID
@@ -830,6 +864,23 @@ export default function App() {
                             onChange={(e) => setPubPrimaryRegion(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all"
                           />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+                          外送員屬性 <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <User className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
+                          <select
+                            value={pubWorkType}
+                            onChange={(e) => setPubWorkType(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all appearance-none"
+                          >
+                            <option value="兼職">兼職</option>
+                            <option value="正職">正職</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -1027,76 +1078,88 @@ export default function App() {
   return (
     <div id="app-root" className="min-h-screen bg-slate-50 flex text-slate-800 font-sans">
       {/* Side Navigation Bar - Geometric Balance Sidebar */}
-      <aside className="w-20 bg-slate-900 flex flex-col items-center py-8 justify-between border-r border-slate-800 shrink-0 hidden md:flex">
-        <div className="flex flex-col items-center gap-10">
-          {/* Brand logo icon container */}
-          <div className="w-12 h-12 bg-indigo-600/10 rounded-xl flex items-center justify-center border border-indigo-500/30 text-indigo-400">
-            <span className="font-black text-2xl">巷</span>
+      <aside className={`bg-slate-900 flex flex-col items-center justify-between border-r border-slate-800 shrink-0 hidden md:flex relative transition-all duration-300 ease-in-out ${isSidebarCollapsed ? "w-0 border-r-0 py-0" : "w-20 py-8"}`}>
+        {/* Sidebar Content Wrapper */}
+        <div className={`w-20 h-full flex flex-col items-center justify-between transition-all duration-300 ${isSidebarCollapsed ? "opacity-0 pointer-events-none scale-90 w-0" : "opacity-100"}`}>
+          <div className="flex flex-col items-center gap-10">
+            {/* Brand logo icon container */}
+            <div className="w-12 h-12 bg-indigo-600/10 rounded-xl flex items-center justify-center border border-indigo-500/30 text-indigo-400">
+              <span className="font-black text-2xl">巷</span>
+            </div>
+            
+            {/* Active Sidebar item */}
+            <div className="flex flex-col gap-6">
+              <button
+                onClick={() => setCrmTab("riders")}
+                className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
+                  crmTab === "riders"
+                    ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/30"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700"
+                }`}
+                title="外送員審核"
+              >
+                <Layers size={20} />
+                <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
+                  外送員審核
+                </span>
+              </button>
+
+              <button
+                onClick={() => setCrmTab("dispatch")}
+                className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
+                  crmTab === "dispatch"
+                    ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/30"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700"
+                }`}
+                title="廣告任務派發"
+              >
+                <Send size={20} />
+                <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
+                  廣告任務派發
+                </span>
+              </button>
+
+              <button
+                onClick={() => setCrmTab("advertisers")}
+                className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
+                  crmTab === "advertisers"
+                    ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/30"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700"
+                }`}
+                title="企業廣告主信箱"
+              >
+                <Mail size={20} />
+                <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
+                  企業廣告主
+                </span>
+              </button>
+              
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 flex items-center justify-center border border-slate-700 relative group transition-all cursor-pointer"
+                title="新增外送員檔案"
+              >
+                <Plus size={20} />
+                <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
+                  新增外送員
+                </span>
+              </button>
+            </div>
           </div>
           
-          {/* Active Sidebar item */}
-          <div className="flex flex-col gap-6">
-            <button
-              onClick={() => setCrmTab("riders")}
-              className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
-                crmTab === "riders"
-                  ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/30"
-                  : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700"
-              }`}
-              title="外送員審核"
-            >
-              <Layers size={20} />
-              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
-                外送員審核
-              </span>
-            </button>
-
-            <button
-              onClick={() => setCrmTab("dispatch")}
-              className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
-                crmTab === "dispatch"
-                  ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/30"
-                  : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700"
-              }`}
-              title="廣告任務派發"
-            >
-              <Send size={20} />
-              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
-                廣告任務派發
-              </span>
-            </button>
-
-            <button
-              onClick={() => setCrmTab("advertisers")}
-              className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all relative group cursor-pointer ${
-                crmTab === "advertisers"
-                  ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/30"
-                  : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700"
-              }`}
-              title="企業廣告主信箱"
-            >
-              <Mail size={20} />
-              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
-                企業廣告主
-              </span>
-            </button>
-            
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 flex items-center justify-center border border-slate-700 relative group transition-all cursor-pointer"
-              title="新增外送員檔案"
-            >
-              <Plus size={20} />
-              <span className="absolute left-full ml-4 bg-slate-850 text-white text-xs py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold z-50 shadow-lg">
-                新增外送員
-              </span>
-            </button>
+          <div className="text-slate-500 font-bold text-xs tracking-widest font-mono select-none">
+            CRM
           </div>
         </div>
-        
-        <div className="text-slate-500 font-bold text-xs tracking-widest font-mono select-none">
-          CRM
-        </div>
+
+        {/* Toggle Button */}
+        <button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="absolute top-1/2 -right-3 -translate-y-1/2 z-50 w-6 h-6 bg-slate-900 hover:bg-indigo-600 text-slate-400 hover:text-white border border-slate-700 hover:border-indigo-500 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 cursor-pointer"
+          title={isSidebarCollapsed ? "展開側邊欄" : "收合側邊欄"}
+        >
+          {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
       </aside>
 
       {/* Main Workspace Panel */}
@@ -1122,6 +1185,92 @@ export default function App() {
 
           {/* Database Connection Status & Action Panel */}
           <div className="flex items-center gap-3">
+            {/* Database Switcher & Configuration */}
+            <div className="relative">
+              <button
+                onClick={() => setIsDbConfigOpen(!isDbConfigOpen)}
+                className={`text-[10px] md:text-xs font-bold px-3 py-1.5 rounded border uppercase tracking-wider flex items-center space-x-1.5 transition-all cursor-pointer ${
+                  (localStorage.getItem("crm_firestore_db_type") || "custom") === "custom"
+                    ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                    : "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"
+                }`}
+                title="點擊配置/切換 Firebase 資料庫源"
+              >
+                <Database size={13} className="text-indigo-600 animate-pulse" />
+                <span className="font-bold">資料庫：{(localStorage.getItem("crm_firestore_db_type") || "custom") === "custom" ? "專屬" : "預設"}</span>
+              </button>
+
+              {isDbConfigOpen && (
+                <div className="absolute right-0 mt-2.5 w-72 bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 z-50 animate-fade-in text-left">
+                  <h4 className="font-extrabold text-xs text-slate-800 mb-2 flex items-center gap-1.5">
+                    <Database size={14} className="text-indigo-600" />
+                    <span>資料庫進階連線設定</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-bold leading-normal mb-3">
+                    ※ 如果您在 Firebase 控制台修改了資料庫（如重設或新增資料庫 ID），可在下方調整以重新連線。
+                  </p>
+                  
+                  <div className="space-y-3">
+                    {/* Toggle Selector */}
+                    <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-lg">
+                      <button
+                        onClick={() => saveDbConfiguration("custom", customDbIdInput)}
+                        className={`text-[10px] py-1 font-bold rounded cursor-pointer transition-all ${
+                          dbTypeSetting === "custom" ? "bg-white text-indigo-600 shadow-xs" : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        專屬資料庫
+                      </button>
+                      <button
+                        onClick={() => saveDbConfiguration("default", customDbIdInput)}
+                        className={`text-[10px] py-1 font-bold rounded cursor-pointer transition-all ${
+                          dbTypeSetting === "default" ? "bg-white text-indigo-600 shadow-xs" : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        預設 (default)
+                      </button>
+                    </div>
+
+                    {/* Custom ID input (only active/visible if custom type is selected) */}
+                    {dbTypeSetting === "custom" && (
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
+                          自訂資料庫 ID (Firestore Database ID)
+                        </label>
+                        <input
+                          type="text"
+                          value={customDbIdInput}
+                          onChange={(e) => setCustomDbIdInput(e.target.value)}
+                          placeholder="請輸入 Firestore Database ID..."
+                          className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 rounded-lg text-xs font-mono font-bold text-slate-700"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-1 border-t border-slate-100">
+                      <button
+                        onClick={() => saveDbConfiguration(dbTypeSetting as "custom" | "default", customDbIdInput)}
+                        className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg cursor-pointer text-center transition-all"
+                      >
+                        儲存並重啟連線
+                      </button>
+                      <button
+                        onClick={() => {
+                          localStorage.removeItem("crm_firestore_db_custom_id");
+                          localStorage.removeItem("crm_firestore_db_type");
+                          window.location.reload();
+                        }}
+                        className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold rounded-lg cursor-pointer text-center transition-all"
+                        title="恢復至最原始出廠預設值"
+                      >
+                        重置
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Real-time status badge */}
             <div className={`text-[10px] md:text-xs font-bold px-3 py-1.5 rounded border uppercase tracking-wider flex items-center space-x-2 ${
               statusMsg.type === "success"
@@ -1277,6 +1426,7 @@ export default function App() {
                     <div className="lg:col-span-7">
                       <SubmissionDetail
                         submission={selectedSubmission}
+                        submissions={submissions}
                         onApprove={handleApprove}
                         onReject={handleReject}
                         onSaveNotes={handleSaveNotes}

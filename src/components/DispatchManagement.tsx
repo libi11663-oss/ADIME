@@ -321,13 +321,13 @@ export function DispatchManagement({ submissions, onDispatch, onCancelDispatch }
 
 📊 廣告投放任務明細：
 📌 合約投放天數：${finalDays} 天
-📌 廣告執行起訖：${dispatchStartDate} ~ ${dispatchEndDate} (自您「裝上擋泥板並拍照回傳」起計算 ${finalDays} 天)
+📌 廣告執行起訖：${dispatchStartDate} ~ ${dispatchEndDate} (請於廣告執行日前安裝完成並回傳安裝照片至官方賴)
 📌 指標里程與時數目標：${dispatchTarget || "未設定"}
 📌 專屬會員號碼：${selectedRider.memberId || "待配發"}
 
 * 貼心提醒：請您在每日出車前確認外送箱上的廣告貼膜保持清潔與平整。任務期間，系統將依據您回傳的每日跑單與里程照片進行數據稽核。若您有任何疑問，請透過 LINE ID: @alleyway_ad 聯絡客服。
 
-穿巷營運與物流調度小組 敬上`;
+穿巷移動媒體團隊 敬上`;
 
       // Construct Gmail URL
       const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(selectedRider.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -745,6 +745,15 @@ export function DispatchManagement({ submissions, onDispatch, onCancelDispatch }
                         <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold">
                           {rider.deliveryPlatform}
                         </span>
+                        {rider.workType && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                            rider.workType === "正職"
+                              ? "bg-purple-50 text-purple-700 border-purple-200"
+                              : "bg-indigo-50 text-indigo-700 border-indigo-100"
+                          }`}>
+                            {rider.workType}
+                          </span>
+                        )}
                         {rider.dispatchStatus === "email_sent" && (
                           <span className="text-[10px] bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200/60 px-1.5 py-0.5 rounded font-extrabold flex items-center gap-1 shrink-0">
                             <Send size={8} />
@@ -956,6 +965,15 @@ export function DispatchManagement({ submissions, onDispatch, onCancelDispatch }
                     <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold">
                       {selectedRider.vehicleType}
                     </span>
+                    {selectedRider.workType && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                        selectedRider.workType === "正職"
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : "bg-indigo-50 text-indigo-700 border-indigo-100"
+                      }`}>
+                        {selectedRider.workType}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-slate-500 font-bold space-y-0.5">
                     <p>會員號碼：{selectedRider.memberId || "無"}</p>
@@ -1101,14 +1119,14 @@ export function DispatchManagement({ submissions, onDispatch, onCancelDispatch }
                         <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 space-y-1 font-mono text-xs">
                           <p className="text-indigo-300">📊 廣告投放任務明細：</p>
                           <p>📌 合約投放天數：<span className="text-white font-bold">{dispatchDays || 0} 天</span></p>
-                          <p>📌 廣告執行起訖：<span className="text-emerald-400 font-bold">{dispatchStartDate} ~ {dispatchEndDate} (自您「裝上擋泥板並拍照回傳」起計算 {dispatchDays || 0} 天)</span></p>
+                          <p>📌 廣告執行起訖：<span className="text-emerald-400 font-bold">{dispatchStartDate} ~ {dispatchEndDate} (請於廣告執行日前安裝完成並回傳安裝照片至官方賴)</span></p>
                           <p>📌 指標里程與時數目標：<span className="text-white font-bold">{dispatchTarget || "未設定"}</span></p>
                           <p>📌 專屬會員號碼：<span className="text-white font-bold">{selectedRider.memberId || "待配發"}</span></p>
                         </div>
                         <p className="text-slate-400 text-[10px]">
                           * 貼心提醒：請您在每日出車前確認外送箱上的廣告貼膜保持清潔與平整。任務期間，系統將依據您回傳的每日跑單與里程照片進行數據稽核。若您有任何疑問，請透過 LINE ID: <span className="text-white font-bold">@alleyway_ad</span> 聯絡客服。
                         </p>
-                        <p className="pt-2 text-right text-slate-400">穿巷營運與物流調度小組 敬上</p>
+                        <p className="pt-2 text-right text-slate-400">穿巷移動媒體團隊 敬上</p>
                       </div>
                     </div>
                   </div>
@@ -1523,7 +1541,7 @@ export function DispatchManagement({ submissions, onDispatch, onCancelDispatch }
 
                 <a
                   href={`https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(batchSuccessEmails.join(","))}&su=${encodeURIComponent("【外送廣告合約】恭喜您獲得廣告投放任務！")}&body=${encodeURIComponent(
-                    `親愛的外送夥伴您好：\n\n感謝您參與我們的廣告投放計畫。您的申請已被審核通過！\n\n【合約投放詳情】\n• 廣告走期天數：${batchDays || 30} 天\n• 廣告指定指標目標：${batchTarget || "每月 1000 公里 / 80 小時"}\n• 預定執行區間：${batchStartDate || "即日起"} ~ ${batchEndDate || "合約天數期滿"}\n\n【後續執行流程說明】\n1. 我們將於近日將廣告擋泥板與安裝說明郵寄給您。\n2. 請於收到後，依照指示將擋泥板正確安裝於您的外送車輛上。\n3. 安裝完成後，請於後台或回傳照片至此信箱（須拍到車牌與完整擋泥板外觀）完成簽約確認。\n4. 確認回傳照片無誤後，我們將按下「開始派發」，合約即算正式生效！\n\n若有任何疑問，歡迎隨時與我們聯繫。預祝合作愉快！\n\n廣告運營團隊 敬上`
+                    `親愛的外送夥伴您好：\n\n感謝您參與我們的廣告投放計畫。您的申請已被審核通過！\n\n【合約投放詳情】\n• 廣告走期天數：${batchDays || 30} 天\n• 廣告指定指標目標：${batchTarget || "每月 1000 公里 / 80 小時"}\n• 預定執行區間：${batchStartDate || "即日起"} ~ ${batchEndDate || "合約天數期滿"}\n\n【後續執行流程說明】\n我們將於近期將廣告擋泥板與安裝說明郵寄給您。\n請於之後，根據指示將在三天內收到擋泥板、膠條正確安裝於您的外送車輛與外送箱上。\n安裝完成後，請於後台或回傳照片至此信箱、官方地址（須拍到車牌與完整擋泥板外觀）。\n確認回傳照片無誤後，我們將正式「開始發放」，合約即算正式生效！\n\n若有任何疑問，歡迎隨時與我們聯繫。預祝合作愉快！\n\n廣告運營團隊 敬上`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1540,7 +1558,7 @@ export function DispatchManagement({ submissions, onDispatch, onCancelDispatch }
                   <span>通知信範本預覽（供複製至其他收發信軟體）</span>
                   <button
                     onClick={() => {
-                      const text = `親愛的外送夥伴您好：\n\n感謝您參與我們的廣告投放計畫。您的申請已被審核通過！\n\n【合約投放詳情】\n• 廣告走期天數：${batchDays || 30} 天\n• 廣告指定指標目標：${batchTarget || "每月 1000 公里 / 80 小時"}\n• 預定執行區間：${batchStartDate || "即日起"} ~ ${batchEndDate || "合約天數期滿"}\n\n【後續執行流程說明】\n1. 我們將於近日將廣告擋泥板與安裝說明郵寄給您。\n2. 請於收到後，依照指示將擋泥板正確安裝於您的外送車輛上。\n3. 安裝完成後，請於後台或回傳照片至此信箱（須拍到車牌與完整擋泥板外觀）完成簽約確認。\n4. 確認回傳照片無誤後，我們將按下「開始派發」，合約即算正式生效！`;
+                      const text = `親愛的外送夥伴您好：\n\n感謝您參與我們的廣告投放計畫。您的申請已被審核通過！\n\n【合約投放詳情】\n• 廣告走期天數：${batchDays || 30} 天\n• 廣告指定指標目標：${batchTarget || "每月 1000 公里 / 80 小時"}\n• 預定執行區間：${batchStartDate || "即日起"} ~ ${batchEndDate || "合約天數期滿"}\n\n【後續執行流程說明】\n我們將於近期將廣告擋泥板與安裝說明郵寄給您。\n請於之後，根據指示將在三天內收到擋泥板、膠條正確安裝於您的外送車輛與外送箱上。\n安裝完成後，請於後台或回傳照片至此信箱、官方地址（須拍到車牌與完整擋泥板外觀）。\n確認回傳照片無誤後，我們將正式「開始發放」，合約即算正式生效！\n\n若有任何疑問，歡迎隨時與我們聯繫。預祝合作愉快！\n\n廣告運營團隊 敬上`;
                       navigator.clipboard.writeText(text);
                     }}
                     className="text-indigo-600 hover:text-indigo-800 cursor-pointer text-[10px]"
@@ -1549,7 +1567,7 @@ export function DispatchManagement({ submissions, onDispatch, onCancelDispatch }
                   </button>
                 </div>
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 leading-relaxed font-semibold whitespace-pre-wrap max-h-32 overflow-y-auto">
-                  {`親愛的外送夥伴您好：\n\n感謝您參與我們的廣告投放計畫。您的申請已被審核通過！\n\n【合約投放詳情】\n• 廣告走期天數：${batchDays || 30} 天\n• 廣告指定指標目標：${batchTarget || "每月 1000 公里 / 80 小時"}\n• 預定執行區間：${batchStartDate || "即日起"} ~ ${batchEndDate || "合約天數期滿"}\n\n【後續執行流程說明】\n1. 我們將於近日將廣告擋泥板與安裝說明郵寄給您。\n2. 請於收到後，依照指示將擋泥板正確安裝於您的外送車輛上。\n3. 安裝完成後，請於後台或回傳照片至此信箱（須拍到車牌與完整擋泥板外觀）完成簽約確認。\n4. 確認回傳照片無誤後，我們將按下「開始派發」，合約即算正式生效！`}
+                  {`親愛的外送夥伴您好：\n\n感謝您參與我們的廣告投放計畫。您的申請已被審核通過！\n\n【合約投放詳情】\n• 廣告走期天數：${batchDays || 30} 天\n• 廣告指定指標目標：${batchTarget || "每月 1000 公里 / 80 小時"}\n• 預定執行區間：${batchStartDate || "即日起"} ~ ${batchEndDate || "合約天數期滿"}\n\n【後續執行流程說明】\n我們將於近期將廣告擋泥板與安裝說明郵寄給您。\n請於之後，根據指示將在三天內收到擋泥板、膠條正確安裝於您的外送車輛與外送箱上。\n安裝完成後，請於後台或回傳照片至此信箱、官方地址（須拍到車牌與完整擋泥板外觀）。\n確認回傳照片無誤後，我們將正式「開始發放」，合約即算正式生效！`}
                 </div>
               </div>
             </div>

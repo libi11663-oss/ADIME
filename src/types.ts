@@ -26,6 +26,7 @@ export interface Submission {
   address?: string;       // 聯絡地址
   bankAccount?: string;   // 銀行帳號
   selectedDistricts?: string[] | string; // 選擇常跑的地區行政區
+  workType?: string;      // 屬性：正職 | 兼職
   
   // Dispatch properties
   dispatchStatus?: "undispatched" | "dispatched" | "email_sent";

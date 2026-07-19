@@ -371,9 +371,18 @@ export default function SubmissionList({
                 }`}
               >
                 <div className="flex justify-between items-start mb-1.5">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                     <span className="font-bold text-slate-800 text-sm">{sub.name}</span>
                     <span className="text-xs text-slate-500 font-medium font-mono">{sub.phone}</span>
+                    {sub.workType && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                        sub.workType === "正職"
+                          ? "bg-purple-50 text-purple-700 border-purple-200 animate-pulse"
+                          : "bg-indigo-50 text-indigo-700 border-indigo-100"
+                      }`}>
+                        {sub.workType}
+                      </span>
+                    )}
                   </div>
                   {/* Status badge */}
                   <span
