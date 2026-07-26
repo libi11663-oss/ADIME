@@ -37,6 +37,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
   const [address, setAddress] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [workType, setWorkType] = useState("兼職");
+  const [referralCode, setReferralCode] = useState("");
 
   if (!isOpen) return null;
 
@@ -98,6 +99,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
         address: address.trim(),
         bankAccount: bankAccount.trim(),
         workType,
+        referralCode: referralCode.trim(),
       });
       
       // Reset form
@@ -119,6 +121,7 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
       setAddress("");
       setBankAccount("");
       setWorkType("兼職");
+      setReferralCode("");
       setAppliedAt(getLocalDateTimeString(new Date()));
       onClose();
     } catch (error) {
@@ -419,6 +422,17 @@ export default function AddSubmissionModal({ isOpen, onClose, onSubmit }: AddSub
                 className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium font-mono"
                 value={bankAccount}
                 onChange={(e) => setBankAccount(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-amber-800 block mb-1">會員邀請碼 / 推薦碼 (選填)</label>
+              <input
+                type="text"
+                placeholder="例：AF26001 或 推薦人號碼"
+                className="w-full px-3 py-1.5 text-xs border border-amber-200 bg-amber-50/50 rounded-lg focus:outline-hidden focus:border-amber-500 focus:ring-2 focus:ring-amber-100 font-bold font-mono text-amber-900 placeholder:text-slate-400"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value)}
               />
             </div>
           </div>

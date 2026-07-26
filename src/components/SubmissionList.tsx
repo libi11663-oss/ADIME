@@ -176,6 +176,7 @@ export default function SubmissionList({
           sub.email.toLowerCase().includes(query) ||
           (sub.plateNumber && sub.plateNumber.toLowerCase().includes(query)) ||
           (sub.memberId && sub.memberId.toLowerCase().includes(query)) ||
+          (sub.referralCode && sub.referralCode.toLowerCase().includes(query)) ||
           formattedRegion.includes(query) ||
           (sub.area && sub.area.toLowerCase().includes(query)) ||
           (sub.primaryRegion && sub.primaryRegion.toLowerCase().includes(query)) ||
@@ -455,13 +456,20 @@ export default function SubmissionList({
                   </div>
                 </div>
 
-                {/* Sub row: member ID or Note icon */}
-                <div className="flex justify-between items-center mt-2">
-                  {sub.memberId ? (
-                    <div className="inline-flex items-center bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-100 font-mono">
-                      會員號: {sub.memberId}
-                    </div>
-                  ) : <div />}
+                {/* Sub row: member ID, referral code, or Note icon */}
+                <div className="flex flex-wrap items-center justify-between gap-1 mt-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {sub.memberId && (
+                      <div className="inline-flex items-center bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-100 font-mono">
+                        會員號: {sub.memberId}
+                      </div>
+                    )}
+                    {sub.referralCode && (
+                      <div className="inline-flex items-center bg-amber-50 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded border border-amber-200/90 font-mono">
+                        🎁 邀請碼: {sub.referralCode}
+                      </div>
+                    )}
+                  </div>
 
                   {sub.notes && (
                     <span className="text-[10px] text-indigo-500 font-bold bg-indigo-50/50 px-1.5 py-0.5 rounded flex items-center space-x-0.5 border border-indigo-100/50">

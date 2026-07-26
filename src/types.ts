@@ -27,6 +27,7 @@ export interface Submission {
   bankAccount?: string;   // 銀行帳號
   selectedDistricts?: string[] | string; // 選擇常跑的地區行政區
   workType?: string;      // 屬性：正職 | 兼職
+  referralCode?: string;  // 會員邀請碼 (Referral / Invite code)
   
   // Dispatch properties
   dispatchStatus?: "undispatched" | "dispatched" | "email_sent";

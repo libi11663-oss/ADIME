@@ -839,6 +839,11 @@ export function DispatchManagement({ submissions, onDispatch, onCancelDispatch }
                               {rider.memberId}
                             </span>
                           )}
+                          {rider.referralCode && (
+                            <span className="font-mono text-[9px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-extrabold">
+                              🎁 邀請碼: {rider.referralCode}
+                            </span>
+                          )}
                           <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold">
                             {rider.deliveryPlatform}
                           </span>

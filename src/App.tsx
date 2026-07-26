@@ -36,7 +36,8 @@ import {
   Clock,
   Map,
   TrendingUp,
-  Send
+  Send,
+  Gift
 } from "lucide-react";
 
 export default function App() {
@@ -86,6 +87,7 @@ export default function App() {
   const [pubAddress, setPubAddress] = useState("");
   const [pubBankAccount, setPubBankAccount] = useState("");
   const [pubWorkType, setPubWorkType] = useState("兼職");
+  const [pubReferralCode, setPubReferralCode] = useState("");
 
   const [pubSubmitting, setPubSubmitting] = useState(false);
   const [pubSuccess, setPubSuccess] = useState(false);
@@ -276,6 +278,7 @@ export default function App() {
               bankAccount: data.bankAccount || data.bank_account || "",
               selectedDistricts: data.selectedDistricts || data.selected_districts || "",
               workType: data.workType || "兼職",
+              referralCode: data.referralCode || data.referral_code || data.referral || data.inviteCode || data.invite_code || "",
               dispatchStatus: data.dispatchStatus || "undispatched",
               dispatchDays: data.dispatchDays || null,
               dispatchTarget: data.dispatchTarget || null,
@@ -514,6 +517,7 @@ export default function App() {
         address: pubAddress.trim(),
         bankAccount: pubBankAccount.trim(),
         workType: pubWorkType,
+        referralCode: pubReferralCode.trim(),
       });
 
       // Clear public states
@@ -535,6 +539,7 @@ export default function App() {
       setPubAddress("");
       setPubBankAccount("");
       setPubWorkType("兼職");
+      setPubReferralCode("");
       setPubAppliedAt(getLocalDateTimeString(new Date()));
       
       setPubSuccess(true);
@@ -963,6 +968,23 @@ export default function App() {
                           value={pubBankAccount}
                           onChange={(e) => setPubBankAccount(e.target.value)}
                           className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950 rounded-xl text-xs font-bold text-slate-200 placeholder:text-slate-600 focus:outline-hidden transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center justify-between">
+                        <span>會員邀請碼 / 推薦碼 (選填)</span>
+                        <span className="text-amber-400 font-normal text-[9px]">填寫推薦人邀請碼</span>
+                      </label>
+                      <div className="relative">
+                        <Gift className="absolute left-3.5 top-3.5 text-amber-500" size={14} />
+                        <input
+                          type="text"
+                          placeholder="例：AF26001 或 推薦人手機/會員號"
+                          value={pubReferralCode}
+                          onChange={(e) => setPubReferralCode(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-950/50 rounded-xl text-xs font-bold text-amber-300 placeholder:text-slate-600 focus:outline-hidden transition-all font-mono uppercase"
                         />
                       </div>
                     </div>

@@ -25,7 +25,8 @@ import {
   CreditCard,
   Clock,
   Map,
-  TrendingUp
+  TrendingUp,
+  Gift
 } from "lucide-react";
 
 // Pre-defined quick rejection reasons
@@ -333,14 +334,24 @@ ${rejectionReason.trim()}
           <p className="text-xs text-slate-400 font-mono mt-0.5 font-semibold">GUID: {submission.id}</p>
         </div>
 
-        {submission.status === "approved" && submission.memberId && (
-          <div className="text-right">
-            <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">穿巷會員號碼</span>
-            <span className="text-sm font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-200 inline-block font-mono">
-              {submission.memberId}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center space-x-3">
+          {submission.referralCode && (
+            <div className="text-right">
+              <span className="text-[10px] text-amber-600 block font-bold uppercase tracking-wider">會員邀請碼</span>
+              <span className="text-xs font-extrabold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block font-mono">
+                🎁 {submission.referralCode}
+              </span>
+            </div>
+          )}
+          {submission.status === "approved" && submission.memberId && (
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">穿巷會員號碼</span>
+              <span className="text-sm font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-200 inline-block font-mono">
+                {submission.memberId}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Content Area */}
@@ -433,6 +444,17 @@ ${rejectionReason.trim()}
                     <div>
                       <span className="text-slate-400 text-xs block font-bold leading-none mb-0.5">銀行帳號</span>
                       <span className="font-mono text-xs font-bold text-slate-800">{submission.bankAccount}</span>
+                    </div>
+                  </div>
+                )}
+                {submission.referralCode && (
+                  <div className="flex items-start space-x-2 pt-1.5 border-t border-amber-100/80 bg-amber-50/40 -mx-2 px-2 py-1.5 rounded-lg">
+                    <Gift size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="text-amber-700 text-xs block font-bold leading-none mb-0.5">會員邀請碼 (Referral Code)</span>
+                      <span className="font-mono text-xs font-extrabold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
+                        🎁 {submission.referralCode}
+                      </span>
                     </div>
                   </div>
                 )}
